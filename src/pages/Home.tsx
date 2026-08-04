@@ -8,21 +8,41 @@ function Home() {
       <h1>MHX Kitchen</h1>
 
       <p className="subtitle">
-        Fotografiere ein Rezept und lass es automatisch erkennen.
+        Archiviere deine Rezeptbilder einfach und übersichtlich.
       </p>
 
       <button
         className="bigScanButton"
         onClick={() => navigate("/scan")}
       >
-        📷
+        📸
         <br />
-        REZEPT SCANNEN
+        BILD ARCHIVIEREN
       </button>
 
-      <div className="menuCard">📚 Meine Rezepte</div>
-      <div className="menuCard">❤️ Favoriten</div>
-      <div className="menuCard">⚙️ Einstellungen</div>
+      <div
+        className="menuCard"
+        onClick={() => alert("Kommt als Nächstes")}
+        style={{ cursor: "pointer" }}
+      >
+        📚 Meine Rezepte
+      </div>
+
+      <div
+        className="menuCard"
+        onClick={() => navigate("/favorites")}
+        style={{ cursor: "pointer" }}
+      >
+        ❤️ Favoriten
+      </div>
+
+      <div
+        className="menuCard"
+        onClick={() => alert("Einstellungen kommen später")}
+        style={{ cursor: "pointer" }}
+      >
+        ⚙️ Einstellungen
+      </div>
     </div>
   );
 }
