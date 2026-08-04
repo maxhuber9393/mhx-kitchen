@@ -1,7 +1,13 @@
 import multer from "multer";
-import Tesseract from "tesseract.js";
+import OpenAI from "openai";
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export const config = {
   api: {
@@ -11,7 +17,9 @@ export const config = {
 
 async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ success: false });
+    return res.status(405).json({
+      success: false,
+    });
   }
 
   upload.single("image")(req, res, async (err) => {
@@ -23,14 +31,30 @@ async function handler(req, res) {
     }
 
     try {
-      const result = await Tesseract.recognize(
-        req.file.buffer,
-        "deu+ita"
-      );
+      const base64 = req.file.buffer.toString("base64");
+
+      const response = await openai.responses.create({
+        model: "gpt-5.1-mini",
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: "Lies den gesamten Text aus diesem Bild. Antworte nur mit dem erkannten Text.",
+              },
+              {
+                type: "input_image",
+                image_url: `data:${req.file.mimetype};base64,${base64}`,
+              },
+            ],
+          },
+        ],
+      });
 
       res.json({
         success: true,
-        text: result.data.text,
+        text: response.output_text,
       });
     } catch (e) {
       console.error(e);
