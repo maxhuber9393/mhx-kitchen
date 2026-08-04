@@ -3,9 +3,9 @@ import { useState } from 'react'
 export default function Scan() {
   const [image, setImage] = useState<string | null>(null)
   const [showFolders, setShowFolders] = useState(false)
-
-  // Liste deiner Ordner (später aus Supabase)
-  const folders = ['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke']
+  const [folders, setFolders] = useState(['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke'])
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
 
   // Wenn ein Foto gemacht wurde
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -13,7 +13,7 @@ export default function Scan() {
     if (file) {
       const imageUrl = URL.createObjectURL(file)
       setImage(imageUrl)
-      setShowFolders(true) // Fenster für Ordner öffnen
+      setShowFolders(true)
     }
   }
 
@@ -22,6 +22,16 @@ export default function Scan() {
     alert(`Foto wurde im Ordner "${folderName}" gespeichert!`)
     setImage(null)
     setShowFolders(false)
+    setShowNewFolderInput(false)
+  }
+
+  // Neuen Ordner hinzufügen
+  const handleAddFolder = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newFolderName.trim()) return
+    setFolders([...folders, newFolderName])
+    setNewFolderName('')
+    setShowNewFolderInput(false)
   }
 
   return (
@@ -68,9 +78,13 @@ export default function Scan() {
           borderTopRightRadius: '20px',
           padding: '20px',
           boxShadow: '0 -5px 15px rgba(0,0,0,0.2)',
-          color: '#333'
+          color: '#333',
+          maxHeight: '80vh',
+          overflowY: 'auto'
         }}>
           <h3>In welchem Ordner speichern?</h3>
+
+          {/* Ordnerliste */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
             {folders.map((folder) => (
               <button
@@ -82,12 +96,62 @@ export default function Scan() {
                   border: '1px solid #ccc',
                   backgroundColor: '#f8f9fa',
                   fontSize: '16px',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
+                  color: '#007bff'
                 }}
               >
                 📁 {folder}
               </button>
             ))}
+
+            {/* Eingabefeld oder Button für neuen Ordner */}
+            {showNewFolderInput ? (
+              <form onSubmit={handleAddFolder} style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Ordnername..."
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: '1px solid #ccc',
+                    fontSize: '16px'
+                  }}
+                />
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 15px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  OK
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => setShowNewFolderInput(true)}
+                style={{
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '2px dashed #28a745',
+                  backgroundColor: '#eafaf1',
+                  color: '#28a745',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  marginTop: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                ➕ Neuer Ordner erstellen
+              </button>
+            )}
           </div>
         </div>
       )}
