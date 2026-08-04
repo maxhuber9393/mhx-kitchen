@@ -85,18 +85,29 @@ export default function Scan() {
       }
 
       if (supabase) {
-        // 1. Neuen Ordner in 'folders' speichern (falls neu erzeugt)
-        if (selectedFolder === 'NEW' || !folders.includes(targetFolder)) {
-          await supabase.from('folders').insert([{ name: targetFolder }])
+        // 1. Ordner explizit in der 'folders' Tabelle anlegen
+        const { error: folderError } = await supabase
+          .from('folders')
+          .insert([{ name: targetFolder }])
+          .select()
+
+        if (folderError && folderError.code !== '23505') { // 23505 = existiert bereits, ignorieren
+          console.error('Fehler beim Ordner-Erstellen:', folderError)
         }
 
         // 2. Foto-Eintrag in 'photos' speichern
-        await supabase.from('photos').insert([
-          { folder_name: targetFolder, image_url: imageUrl }
-        ])
+        const { error: photoError } = await supabase
+          .from('photos')
+          .insert([{ folder_name: targetFolder, image_url: imageUrl }])
+
+        if (photoError) {
+          alert('Fehler beim Speichern des Fotos: ' + photoError.message)
+          setLoading(false)
+          return
+        }
       }
 
-      alert('Erfolgreich archiviert!')
+      alert(`Foto erfolgreich im Ordner "${targetFolder}" archiviert!`)
       navigate('/archive')
     } catch (err) {
       console.error('Fehler beim Speichern:', err)
