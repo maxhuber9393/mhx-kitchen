@@ -10,38 +10,51 @@ interface Photo {
 }
 
 export default function Archive() {
-  const [folders, setFolders] = useState<string[]>([])
+  const [folders, setFolders] = useState<string[]>(['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke'])
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [photos, setPhotos] = useState<Photo[]>([])
   const [newFolderName, setNewFolderName] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // Ordner aus Supabase laden
+  // Ordner aus Supabase laden (mit Absturzsicherung)
   const fetchFolders = async () => {
     try {
-      const { data } = await supabase.from('folders').select('name').order('created_at', { ascending: true })
+      if (!supabase) return
+      const { data, error } = await supabase.from('folders').select('name').order('created_at', { ascending: true })
+      if (error) {
+        console.error('Supabase Fehler:', error)
+        return
+      }
       if (data && data.length > 0) {
         setFolders(data.map(f => f.name))
-      } else {
-        setFolders(['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke'])
       }
-    } catch {
-      setFolders(['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke'])
+    } catch (err) {
+      console.error('Fehler beim Laden der Ordner:', err)
     }
   }
 
-  // Fotos für den ausgewählten Ordner laden
+  // Fotos aus Supabase laden
   const fetchPhotos = async (folderName: string) => {
     setLoading(true)
-    const { data } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('folder_name', folderName)
-      .order('created_at', { ascending: false })
+    try {
+      if (!supabase) {
+        setLoading(false)
+        return
+      }
+      const { data, error } = await supabase
+        .from('photos')
+        .select('*')
+        .eq('folder_name', folderName)
+        .order('created_at', { ascending: false })
 
-    if (data) setPhotos(data)
-    setLoading(false)
+      if (error) console.error('Fehler beim Laden der Fotos:', error)
+      if (data) setPhotos(data)
+    } catch (err) {
+      console.error('Fehler:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -54,27 +67,35 @@ export default function Archive() {
     }
   }, [selectedFolder])
 
-  // Neuen Ordner in Supabase anlegen
+  // Neuen Ordner erstellen
   const handleCreateFolder = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newFolderName.trim()) return
 
-    const { error } = await supabase.from('folders').insert([{ name: newFolderName.trim() }])
-    if (!error) {
-      setFolders([...folders, newFolderName.trim()])
-      setNewFolderName('')
-      setShowAddForm(false)
-    } else {
-      alert('Fehler beim Erstellen: ' + error.message)
+    const name = newFolderName.trim()
+    setFolders(prev => [...prev, name])
+    setNewFolderName('')
+    setShowAddForm(false)
+
+    try {
+      if (supabase) {
+        await supabase.from('folders').insert([{ name }])
+      }
+    } catch (err) {
+      console.error('Fehler beim Speichern des Ordners:', err)
     }
   }
 
   // Foto löschen
   const handleDeletePhoto = async (id: string) => {
     if (!confirm('Foto wirklich löschen?')) return
-    const { error } = await supabase.from('photos').delete().eq('id', id)
-    if (!error) {
-      setPhotos(photos.filter(p => p.id !== id))
+    setPhotos(photos.filter(p => p.id !== id))
+    try {
+      if (supabase) {
+        await supabase.from('photos').delete().eq('id', id)
+      }
+    } catch (err) {
+      console.error('Fehler beim Löschen:', err)
     }
   }
 
@@ -83,9 +104,10 @@ export default function Archive() {
       padding: '20px', 
       minHeight: '100vh', 
       backgroundColor: '#0f172a', 
-      color: 'white' 
+      color: 'white',
+      boxSizing: 'border-box'
     }}>
-      {/* Kopfzeile mit Zurück-Button */}
+      {/* Kopfzeile */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '15px' }}>
         <Link to="/" style={{ textDecoration: 'none' }}>
           <button style={{
