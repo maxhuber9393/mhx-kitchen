@@ -16,18 +16,17 @@ export default function Archive() {
   const [newFolderName, setNewFolderName] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [loading, setLoading] = useState(false)
+  
+  // Zustand für die Großansicht
+  const [activePhoto, setActivePhoto] = useState<string | null>(null)
 
   // Ordner aus Supabase laden
   const fetchFolders = async () => {
     try {
       if (!supabase) return
       
-      const { data: dbFolders, error: folderErr } = await supabase.from('folders').select('name')
+      const { data: dbFolders } = await supabase.from('folders').select('name')
       const { data: dbPhotos } = await supabase.from('photos').select('folder_name')
-
-      if (folderErr) {
-        console.error('Fehler beim Laden der Ordner:', folderErr)
-      }
 
       const defaultFolders = ['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke']
       const folderNamesFromDb = dbFolders ? dbFolders.map(f => f.name) : []
@@ -89,23 +88,22 @@ export default function Archive() {
       if (supabase) {
         const { error } = await supabase.from('folders').insert([{ name }])
         if (error) {
-          alert('Supabase Fehler beim Speichern: ' + error.message)
+          alert('Fehler beim Speichern: ' + error.message)
           return
         }
       }
       
       setNewFolderName('')
       setShowAddForm(false)
-      // Ordner neu aus der Datenbank abrufen
       await fetchFolders()
-      alert(`Ordner "${name}" wurde erfolgreich erstellt!`)
     } catch (err) {
       console.error('Fehler beim Speichern des Ordners:', err)
     }
   }
 
   // Foto löschen
-  const handleDeletePhoto = async (id: string) => {
+  const handleDeletePhoto = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation() // Verhindert, dass sich die Großansicht öffnet
     if (!confirm('Foto wirklich löschen?')) return
     setPhotos(photos.filter(p => p.id !== id))
     try {
@@ -251,10 +249,20 @@ export default function Archive() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
               {photos.map((photo) => (
-                <div key={photo.id} style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
+                <div 
+                  key={photo.id} 
+                  onClick={() => setActivePhoto(photo.image_url)}
+                  style={{ 
+                    position: 'relative', 
+                    borderRadius: '12px', 
+                    overflow: 'hidden', 
+                    border: '1px solid #334155',
+                    cursor: 'pointer'
+                  }}
+                >
                   <img src={photo.image_url} alt="Speise" style={{ width: '100%', height: '150px', objectFit: 'cover', display: 'block' }} />
                   <button
-                    onClick={() => handleDeletePhoto(photo.id)}
+                    onClick={(e) => handleDeletePhoto(e, photo.id)}
                     style={{
                       position: 'absolute',
                       top: '5px',
@@ -267,7 +275,8 @@ export default function Archive() {
                       height: '32px',
                       cursor: 'pointer',
                       fontWeight: 'bold',
-                      fontSize: '14px'
+                      fontSize: '14px',
+                      zIndex: 2
                     }}
                   >
                     🗑️
@@ -276,6 +285,59 @@ export default function Archive() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal / Overlay für Großansicht */}
+      {activePhoto && (
+        <div 
+          onClick={() => setActivePhoto(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+        >
+          <button 
+            onClick={() => setActivePhoto(null)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              backgroundColor: '#1e293b',
+              color: 'white',
+              border: '1px solid #334155',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              fontSize: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ✕
+          </button>
+          
+          <img 
+            src={activePhoto} 
+            alt="Großansicht" 
+            style={{
+              maxWidth: '100%',
+              maxHeight: '90vh',
+              borderRadius: '12px',
+              objectFit: 'contain'
+            }} 
+          />
         </div>
       )}
     </div>
