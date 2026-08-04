@@ -1,19 +1,16 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
-import Scan from "./pages/Scan";
-import Favorites from "./pages/Favorites";
-import "./App.css";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import Home from './pages/Home'
+import Scan from './pages/Scan'
+import Archive from './pages/Archive'
 
-function App() {
+export default function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/scan" element={<Scan />} />
-        <Route path="/favorites" element={<Favorites />} />
+        <Route path="/archive" element={<Archive />} />
       </Routes>
-    </BrowserRouter>
-  );
+    </Router>
+  )
 }
-
-export default App;
