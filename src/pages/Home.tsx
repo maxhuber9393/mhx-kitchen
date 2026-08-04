@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom";
+
 function Home() {
+  const navigate = useNavigate();
+
   return (
     <div className="app">
       <h1>MHX Kitchen</h1>
@@ -7,7 +11,10 @@ function Home() {
         Fotografiere ein Rezept und lass es automatisch erkennen.
       </p>
 
-      <button className="bigScanButton">
+      <button
+        className="bigScanButton"
+        onClick={() => navigate("/scan")}
+      >
         📷
         <br />
         REZEPT SCANNEN
