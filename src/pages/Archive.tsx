@@ -17,18 +17,29 @@ export default function Archive() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // Ordner aus Supabase laden (mit Absturzsicherung)
+  // Ordner aus Supabase laden
   const fetchFolders = async () => {
     try {
       if (!supabase) return
-      const { data, error } = await supabase.from('folders').select('name').order('created_at', { ascending: true })
-      if (error) {
-        console.error('Supabase Fehler:', error)
-        return
+      
+      const { data: dbFolders, error: folderErr } = await supabase.from('folders').select('name')
+      const { data: dbPhotos } = await supabase.from('photos').select('folder_name')
+
+      if (folderErr) {
+        console.error('Fehler beim Laden der Ordner:', folderErr)
       }
-      if (data && data.length > 0) {
-        setFolders(data.map(f => f.name))
-      }
+
+      const defaultFolders = ['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke']
+      const folderNamesFromDb = dbFolders ? dbFolders.map(f => f.name) : []
+      const folderNamesFromPhotos = dbPhotos ? dbPhotos.map(p => p.folder_name).filter(Boolean) : []
+
+      const mergedFolders = Array.from(new Set([
+        ...defaultFolders,
+        ...folderNamesFromDb,
+        ...folderNamesFromPhotos
+      ]))
+
+      setFolders(mergedFolders)
     } catch (err) {
       console.error('Fehler beim Laden der Ordner:', err)
     }
@@ -73,14 +84,21 @@ export default function Archive() {
     if (!newFolderName.trim()) return
 
     const name = newFolderName.trim()
-    setFolders(prev => [...prev, name])
-    setNewFolderName('')
-    setShowAddForm(false)
 
     try {
       if (supabase) {
-        await supabase.from('folders').insert([{ name }])
+        const { error } = await supabase.from('folders').insert([{ name }])
+        if (error) {
+          alert('Supabase Fehler beim Speichern: ' + error.message)
+          return
+        }
       }
+      
+      setNewFolderName('')
+      setShowAddForm(false)
+      // Ordner neu aus der Datenbank abrufen
+      await fetchFolders()
+      alert(`Ordner "${name}" wurde erfolgreich erstellt!`)
     } catch (err) {
       console.error('Fehler beim Speichern des Ordners:', err)
     }
@@ -169,7 +187,8 @@ export default function Archive() {
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
                 }}
               >
                 OK
