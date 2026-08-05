@@ -1,14 +1,14 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
-import Home from './pages/Home'
-import Trash from './pages/Trash'
-import Archive from './pages/Archive'
-import Favorites from './pages/Favorites'
-import Scan from './pages/Scan'
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom"
+import Home from "./pages/Home"
+import Trash from "./pages/Trash"
+import Archive from "./pages/Archive"
+import Favorites from "./pages/Favorites"
+import Scan from "./pages/Scan"
 
 export default function App() {
   return (
     <Router>
-      <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', paddingBottom: '70px' }}>
+      <div style={{ minHeight: "100vh", backgroundColor: "#0f172a", paddingBottom: "70px" }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/archive" element={<Archive />} />
@@ -17,38 +17,32 @@ export default function App() {
           <Route path="/trash" element={<Trash />} />
         </Routes>
 
-        {/* Untere Navigationsleiste */}
         <nav style={{
-          position: 'fixed',
+          position: "fixed",
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: '#1e293b',
-          borderTop: '1px solid #334155',
-          display: 'flex',
-          justifyContent: 'space-around',
-          padding: '10px 0',
+          backgroundColor: "#1e293b",
+          borderTop: "1px solid #334155",
+          display: "flex",
+          justifyContent: "space-around",
+          padding: "10px 0",
           zIndex: 1000
         }}>
-          <Link to="/" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
-            <div style={{ fontSize: '20px' }}>🏠</div>
-            Start
+          <Link to="/" style={{ color: "white", textDecoration: "none", textAlign: "center", fontSize: "12px" }}>
+            <div style={{ fontSize: "20px" }}>??</div>Start
           </Link>
-          <Link to="/archive" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
-            <div style={{ fontSize: '20px' }}>📁</div>
-            Archiv
+          <Link to="/archive" style={{ color: "white", textDecoration: "none", textAlign: "center", fontSize: "12px" }}>
+            <div style={{ fontSize: "20px" }}>??</div>Archiv
           </Link>
-          <Link to="/scan" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
-            <div style={{ fontSize: '20px' }}>📷</div>
-            Scannen
+          <Link to="/scan" style={{ color: "white", textDecoration: "none", textAlign: "center", fontSize: "12px" }}>
+            <div style={{ fontSize: "20px" }}>??</div>Scannen
           </Link>
-          <Link to="/favorites" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
-            <div style={{ fontSize: '20px' }}>⭐</div>
-            Favoriten
+          <Link to="/favorites" style={{ color: "white", textDecoration: "none", textAlign: "center", fontSize: "12px" }}>
+            <div style={{ fontSize: "20px" }}>?</div>Favoriten
           </Link>
-          <Link to="/trash" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
-            <div style={{ fontSize: '20px' }}>🗑️</div>
-            Müll
+          <Link to="/trash" style={{ color: "white", textDecoration: "none", textAlign: "center", fontSize: "12px" }}>
+            <div style={{ fontSize: "20px" }}>???</div>M�ll
           </Link>
         </nav>
       </div>
