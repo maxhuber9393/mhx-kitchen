@@ -120,11 +120,10 @@ export default function Archive() {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* ANSICHT 1: Ordner-Kacheln */}
+      {/* ANSICHT 1: Ordner-Kacheln als übersichtliches Raster nebeneinander */}
       {!selectedFolder && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
           {allFolders.map(folderName => {
-            // Prüfen ob es ein Standard-Ordner ist
             const isDefaultFolder = DEFAULT_FOLDERS.includes(folderName)
 
             return (
@@ -134,18 +133,17 @@ export default function Archive() {
                   backgroundColor: '#1e293b',
                   border: '1px solid #334155',
                   borderRadius: '12px',
-                  padding: '20px',
+                  padding: '16px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '8px',
+                  gap: '6px',
                   position: 'relative'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ fontSize: '28px', cursor: 'pointer' }} onClick={() => setSelectedFolder(folderName)}>
+                  <div style={{ fontSize: '24px', cursor: 'pointer' }} onClick={() => setSelectedFolder(folderName)}>
                     📁
                   </div>
-                  {/* Umbenennen Button NUR anzeigen, wenn es KEIN Standard-Ordner ist */}
                   {!isDefaultFolder && editingFolder !== folderName && (
                     <button
                       onClick={(e) => {
@@ -154,16 +152,15 @@ export default function Archive() {
                         setNewFolderName(folderName)
                       }}
                       title="Ordner umbenennen"
-                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px', padding: '4px' }}
+                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '14px', padding: '2px' }}
                     >
                       ✏️
                     </button>
                   )}
                 </div>
 
-                {/* Wenn gerade umbenannt wird */}
                 {editingFolder === folderName ? (
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
                     <input
                       type="text"
                       value={newFolderName}
@@ -174,29 +171,31 @@ export default function Archive() {
                         color: 'white',
                         border: '1px solid #3b82f6',
                         borderRadius: '6px',
-                        padding: '6px 8px',
-                        fontSize: '14px',
-                        width: '100%'
+                        padding: '6px',
+                        fontSize: '13px',
+                        width: '100%',
+                        boxSizing: 'border-box'
                       }}
                     />
-                    <button
-                      onClick={() => handleRenameFolder(folderName)}
-                      style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', cursor: 'pointer' }}
-                    >
-                      OK
-                    </button>
-                    <button
-                      onClick={() => setEditingFolder(null)}
-                      style={{ backgroundColor: '#475569', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', cursor: 'pointer' }}
-                    >
-                      ✕
-                    </button>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        onClick={() => handleRenameFolder(folderName)}
+                        style={{ flex: 1, backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', fontSize: '11px', cursor: 'pointer' }}
+                      >
+                        OK
+                      </button>
+                      <button
+                        onClick={() => setEditingFolder(null)}
+                        style={{ flex: 1, backgroundColor: '#475569', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', fontSize: '11px', cursor: 'pointer' }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 ) : (
-                  /* Normale Ordneranzeige */
                   <div onClick={() => setSelectedFolder(folderName)} style={{ cursor: 'pointer' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>{folderName}</div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>{getPhotoCount(folderName)} Fotos</div>
+                    <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#f8fafc', wordBreak: 'break-word' }}>{folderName}</div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{getPhotoCount(folderName)} Fotos</div>
                   </div>
                 )}
               </div>
@@ -214,12 +213,12 @@ export default function Archive() {
               <p>Keine Fotos im Ordner "{selectedFolder}".</p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
               {folderPhotos.map(photo => (
                 <div key={photo.id} style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
                   <img src={photo.url} alt={photo.category} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
                   
-                  <div style={{ padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button
                       onClick={() => toggleFavorite(photo.id)}
                       style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: 0, color: photo.favorite ? '#f59e0b' : '#64748b' }}
