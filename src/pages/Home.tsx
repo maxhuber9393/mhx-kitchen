@@ -18,15 +18,32 @@ export default function Home() {
     }
   }, [])
 
-  const handleAddToHomeScreen = () => {
+  const handleAddToHomeScreen = async () => {
+    // 1. Android / Chrome (falls verfügbar)
     if (deferredPrompt) {
       deferredPrompt.prompt()
       deferredPrompt.userChoice.then(() => {
         setDeferredPrompt(null)
       })
-    } else {
-      setShowGuide(!showGuide)
+      return
     }
+
+    // 2. iOS / Safari Web Share API triggern
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'MHX-KITCHEN',
+          text: 'MHX-KITCHEN zum Homebildschirm hinzufügen',
+          url: window.location.href,
+        })
+        return
+      } catch (err) {
+        // Falls der User das Teilen-Menü abbricht
+      }
+    }
+
+    // 3. Fallback (Anleitung einblenden)
+    setShowGuide(!showGuide)
   }
 
   return (
@@ -38,7 +55,7 @@ export default function Home() {
         <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: '14px' }}>Dein Rezept- & Fotoarchiv</p>
       </div>
 
-      {/* Buttons */}
+      {/* Buttons / Navigation */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         
         {/* Foto hochladen */}
@@ -74,7 +91,7 @@ export default function Home() {
           </div>
         </Link>
 
-        {/* Zum Homebildschirm hinzufügen */}
+        {/* 📤 Zum Homebildschirm hinzufügen (mit Teilen-Icon) */}
         <div
           onClick={handleAddToHomeScreen}
           style={{
@@ -89,18 +106,16 @@ export default function Home() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <span style={{ fontSize: '24px' }}>📱</span>
+            <span style={{ fontSize: '24px' }}>📤</span>
             <div style={{ color: 'white' }}>
               <div style={{ fontWeight: 'bold', fontSize: '16px' }}>Zum Homebildschirm hinzufügen</div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>Als App auf dem Handy speichern</div>
+              <div style={{ fontSize: '12px', color: '#94a3b8' }}>Tippen & "Zum Home-Bildschirm" wählen</div>
             </div>
           </div>
 
           {showGuide && (
             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #334155', fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
-              <p style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#3b82f6' }}>iPhone (Safari):</p>
-              1. Tippe unten auf den <strong>Teilen-Button</strong> (Quadrat mit Pfeil nach oben).<br />
-              2. Scrolle nach unten und wähle <strong>"Zum Home-Bildschirm"</strong>.
+              Wähle im Menü einfach <strong>"Zum Home-Bildschirm"</strong> aus.
             </div>
           )}
         </div>
