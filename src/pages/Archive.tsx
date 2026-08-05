@@ -18,12 +18,12 @@ interface FolderGroup {
   coverUrl: string
 }
 
-// 📌 Diese Ordner werden IMMER im Archiv angezeigt
+// 📌 Feste Standard-Ordner im Archiv
 const DEFAULT_FOLDERS = ['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke']
 
 export default function Archive() {
   const [photos, setPhotos] = useState<Photo[]>([])
-  const [activeFolder, setActiveFolder] = useState<string | null>(null) // null = Ordner-Übersicht
+  const [activeFolder, setActiveFolder] = useState<string | null>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
 
@@ -47,12 +47,11 @@ export default function Archive() {
     setLoading(false)
   }
 
-  // Hilfsfunktion: Ermittelt den Ordnernamen flexibel
+  // Hilfsfunktion zur Ermittlung des Ordnernamens
   const getFolderName = (p: Photo): string => {
     return p.folder || p.folder_name || p.category || 'Unkategorisiert'
   }
 
-  // Combine feste Standard-Ordner + Ordner aus Supabase
   const dynamicFolders = photos.map(p => getFolderName(p))
   const allFolderNames = Array.from(new Set([...DEFAULT_FOLDERS, ...dynamicFolders]))
 
@@ -65,17 +64,15 @@ export default function Archive() {
     }
   })
 
-  // ⭐ Favorit umschalten (Sofort gelb & Supabase Update)
+  // ⭐ Favoriten-Status umschalten (Sofortiges Update & Supabase)
   const toggleFavorite = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
     const newStatus = !photo.is_favorite
 
-    // 1. Sofort im State ändern, damit er gelb bleibt!
     setPhotos(prev =>
       prev.map(p => (p.id === photo.id ? { ...p, is_favorite: newStatus } : p))
     )
 
-    // 2. In Supabase speichern
     if (supabase) {
       const { error } = await supabase
         .from('photos')
@@ -95,7 +92,7 @@ export default function Archive() {
   return (
     <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
       
-      {/* Top Header */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '25px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {activeFolder ? (
@@ -124,7 +121,7 @@ export default function Archive() {
         </div>
       ) : activeFolder === null ? (
         
-        /* 1. ANSICHT: ORDNER-KACHELN (Hauptspeisen, Desserts, Snacks, Getränke) */
+        /* 1. ORDNER-KACHELN */
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
           {folderGroups.map((folder) => (
             <div
@@ -139,7 +136,6 @@ export default function Archive() {
                 boxShadow: '0 6px 16px rgba(0, 0, 0, 0.3)'
               }}
             >
-              {/* Vorschaubild der Kachel */}
               <div style={{ width: '100%', paddingTop: '80%', position: 'relative', backgroundColor: '#0f172a' }}>
                 {folder.coverUrl ? (
                   <img
@@ -153,7 +149,6 @@ export default function Archive() {
                   </div>
                 )}
                 
-                {/* Badge Foto-Anzahl */}
                 <span style={{
                   position: 'absolute',
                   top: '10px',
@@ -182,7 +177,7 @@ export default function Archive() {
 
       ) : (
 
-        /* 2. ANSICHT: FOTOS IN DEM ORDNER */
+        /* 2. FOTOS IM ORDNER */
         <div>
           {activePhotos.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '50px 20px', backgroundColor: '#1e293b', borderRadius: '16px', border: '1px dashed #334155' }}>
@@ -218,15 +213,15 @@ export default function Archive() {
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                   />
 
-                  {/* 🌟 Gelber Stern-Button */}
+                  {/* 🌟 Stern-Button: Standardmäßig transparent mit weißer Umrandung (☆), erst beim Klicken gelb ausgefüllt (★) */}
                   <button
                     onClick={(e) => toggleFavorite(photo, e)}
                     style={{
                       position: 'absolute',
                       top: '8px',
                       right: '8px',
-                      backgroundColor: photo.is_favorite ? '#f59e0b' : 'rgba(15, 23, 42, 0.75)',
-                      border: photo.is_favorite ? '2px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.4)',
+                      backgroundColor: photo.is_favorite ? '#f59e0b' : 'rgba(15, 23, 42, 0.65)',
+                      border: photo.is_favorite ? '2px solid #fbbf24' : '1.5px solid rgba(255, 255, 255, 0.8)',
                       borderRadius: '50%',
                       width: '38px',
                       height: '38px',
@@ -234,14 +229,15 @@ export default function Archive() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
-                      fontSize: '20px',
-                      color: photo.is_favorite ? '#ffffff' : '#fbbf24',
+                      fontSize: photo.is_favorite ? '20px' : '22px',
+                      color: photo.is_favorite ? '#ffffff' : '#ffffff',
                       boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
                       backdropFilter: 'blur(4px)',
-                      zIndex: 10
+                      zIndex: 10,
+                      transition: 'all 0.2s ease'
                     }}
                   >
-                    ★
+                    {photo.is_favorite ? '★' : '☆'}
                   </button>
                 </div>
               ))}
