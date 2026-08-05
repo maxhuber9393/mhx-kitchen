@@ -1,125 +1,199 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabase'
 import { Link } from 'react-router-dom'
 
-interface Photo {
+interface PhotoItem {
   id: string
-  image_url: string
-  folder?: string
-  folder_name?: string
-  category?: string
-  is_favorite?: boolean
+  url: string
+  category: string
+  favorite?: boolean
 }
 
 export default function Favorites() {
-  const [photos, setPhotos] = useState<Photo[]>([])
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
+  const [favoritePhotos, setFavoritePhotos] = useState<PhotoItem[]>([])
+  const [activePhoto, setActivePhoto] = useState<PhotoItem | null>(null)
+
+  // Favoriten aus dem zentralen Archiv laden
+  const loadFavorites = () => {
+    const saved = localStorage.getItem('mhx_archive_photos')
+    if (saved) {
+      try {
+        const allPhotos: PhotoItem[] = JSON.parse(saved)
+        // Alle Fotos filtern, die favorite === true haben
+        const favs = allPhotos.filter(p => p.favorite === true)
+        setFavoritePhotos(favs)
+      } catch (e) {
+        console.error('Fehler beim Laden der Favoriten', e)
+      }
+    }
+  }
 
   useEffect(() => {
-    fetchFavorites()
+    loadFavorites()
   }, [])
 
-  const fetchFavorites = async () => {
-    if (!supabase) return
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('is_favorite', true)
-      .order('created_at', { ascending: false })
+  // Stern in Favoriten umschalten (entfernt das Bild aus den Favoriten)
+  const toggleFavorite = (id: string) => {
+    const saved = localStorage.getItem('mhx_archive_photos')
+    if (!saved) return
 
-    if (error) {
-      console.error('Fehler beim Laden:', error)
-    } else {
-      setPhotos(data || [])
-    }
-    setLoading(false)
-  }
+    const allPhotos: PhotoItem[] = JSON.parse(saved)
+    const updated = allPhotos.map(photo => {
+      if (photo.id === id) {
+        return { ...photo, favorite: !photo.favorite }
+      }
+      return photo
+    })
 
-  const removeFavorite = async (photo: Photo, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setPhotos(prev => prev.filter(p => p.id !== photo.id))
-
-    if (supabase) {
-      await supabase.from('photos').update({ is_favorite: false }).eq('id', photo.id)
+    // Zentral im Archiv speichern
+    localStorage.setItem('mhx_archive_photos', JSON.stringify(updated))
+    
+    // Lokale Liste sofort aktualisieren
+    setFavoritePhotos(updated.filter(p => p.favorite === true))
+    
+    if (activePhoto?.id === id) {
+      setActivePhoto(null)
     }
   }
 
-  const handleShare = (photoUrl: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (navigator.share) {
-      navigator.share({ title: 'MHX-KITCHEN Foto', url: photoUrl }).catch(() => {})
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(photoUrl)}`, '_blank')
-    }
+  // Foto herunterladen
+  const handleDownload = (photoUrl: string) => {
+    const link = document.createElement('a')
+    link.href = photoUrl
+    link.download = `mhx-favorit-${Date.now()}.jpg`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
-  const handleOpenImage = (photoUrl: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    window.open(photoUrl, '_blank')
+  // WhatsApp Teilen
+  const handleWhatsAppShare = (photoUrl: string) => {
+    const text = encodeURIComponent(`Schau dir dieses Lieblingsrezept an: ${photoUrl}`)
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank')
   }
 
   return (
-    <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ padding: '24px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
       
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '25px' }}>
-        <Link to="/" style={{ textDecoration: 'none' }}>
-          <button style={{ padding: '8px 14px', backgroundColor: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '10px', cursor: 'pointer', fontSize: '14px' }}>
-            ← Zurück
-          </button>
-        </Link>
-        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>⭐ Meine Favoriten</h2>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '16px' }}>← Startseite</Link>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          ⭐ Favoriten
+        </h1>
+        <div style={{ width: '60px' }}></div>
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>Lade Favoriten... ⏳</div>
-      ) : photos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: '#1e293b', borderRadius: '16px', border: '1px dashed #334155' }}>
-          <p style={{ fontSize: '48px', margin: '0 0 16px 0' }}>⭐</p>
-          <p style={{ fontSize: '16px', margin: 0, fontWeight: 'bold' }}>Noch keine Favoriten vorhanden</p>
+      {favoritePhotos.length === 0 ? (
+        <div style={{ textAlign: 'center', color: '#64748b', marginTop: '80px' }}>
+          <p style={{ fontSize: '48px', marginBottom: '8px' }}>⭐</p>
+          <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#94a3b8' }}>Noch keine Favoriten vorhanden</p>
+          <p style={{ fontSize: '13px' }}>Markiere Fotos im Archiv mit dem Stern-Symbol, um sie hier zu sehen.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
-          {photos.map(photo => (
-            <div
-              key={photo.id}
-              onClick={() => setSelectedPhoto(photo)}
-              style={{ position: 'relative', paddingTop: '100%', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#1e293b', border: '1px solid #334155', cursor: 'pointer' }}
-            >
-              <img src={photo.image_url} alt="Favorit" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-
-              <button
-                onClick={(e) => removeFavorite(photo, e)}
-                style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: '#f59e0b', border: '2px solid #fbbf24', borderRadius: '50%', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '20px', color: '#ffffff', zIndex: 10 }}
-              >
-                ★
-              </button>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
+          {favoritePhotos.map(photo => (
+            <div key={photo.id} style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
+              <img 
+                src={photo.url} 
+                alt={photo.category} 
+                onClick={() => setActivePhoto(photo)}
+                style={{ width: '100%', height: '140px', objectFit: 'cover', cursor: 'pointer' }} 
+              />
+              
+              <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>{photo.category}</span>
+                <button
+                  onClick={() => toggleFavorite(photo.id)}
+                  title="Aus Favoriten entfernen"
+                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#f59e0b' }}
+                >
+                  ⭐
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {selectedPhoto && (
-        <div
-          onClick={() => setSelectedPhoto(null)}
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}
+      {/* Vollbild Overlay */}
+      {activePhoto && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.95)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '20px 16px',
+            boxSizing: 'border-box'
+          }}
         >
-          <img src={selectedPhoto.image_url} alt="Vollbild" style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '16px', objectFit: 'contain' }} />
-
-          <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
-            <button
-              onClick={(e) => handleShare(selectedPhoto.image_url, e)}
-              style={{ backgroundColor: '#25D366', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 18px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+            <button 
+              onClick={() => setActivePhoto(null)}
+              style={{
+                backgroundColor: '#334155',
+                color: 'white',
+                border: 'none',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                fontSize: '20px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
             >
-              🔗 Teilen / WhatsApp
+              ✕
+            </button>
+          </div>
+
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+            <img 
+              src={activePhoto.url} 
+              alt="Großansicht" 
+              style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: '12px' }} 
+            />
+          </div>
+
+          <div style={{
+            backgroundColor: '#1e293b',
+            border: '1px solid #334155',
+            borderRadius: '16px',
+            padding: '12px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            width: '100%',
+            maxWidth: '400px',
+            justifyContent: 'space-around'
+          }}>
+            <button
+              onClick={() => toggleFavorite(activePhoto.id)}
+              style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#f59e0b' }}
+            >
+              ⭐
             </button>
 
             <button
-              onClick={(e) => handleOpenImage(selectedPhoto.image_url, e)}
-              style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 18px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
+              onClick={() => handleWhatsAppShare(activePhoto.url)}
+              style={{ backgroundColor: '#25d366', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}
             >
-              💾 Bild öffnen
+              💬 Teilen
+            </button>
+
+            <button
+              onClick={() => handleDownload(activePhoto.url)}
+              style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}
+            >
+              💾 Sichern
             </button>
           </div>
         </div>
