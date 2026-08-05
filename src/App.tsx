@@ -20,7 +20,7 @@ export default function App() {
           backgroundColor: '#1e293b',
           borderTop: '1px solid #334155',
           display: 'flex',
-          justifyaround: 'space-around',
+          justifyContent: 'space-around',
           padding: '10px 0',
           zIndex: 1000
         }}>
