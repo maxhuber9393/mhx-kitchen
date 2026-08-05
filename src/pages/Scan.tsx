@@ -9,6 +9,7 @@ export default function Scan() {
   const [folders, setFolders] = useState<string[]>([])
   const [selectedFolder, setSelectedFolder] = useState<string>('Hauptspeisen')
   const [customFolder, setCustomFolder] = useState<string>('')
+  const [isCreatingNewFolder, setIsCreatingNewFolder] = useState<boolean>(false)
   const [loading, setLoading] = useState<boolean>(false)
 
   useEffect(() => {
@@ -34,10 +35,15 @@ export default function Scan() {
     }
   }
 
+  const handleClearImage = () => {
+    setFile(null)
+    setPreview(null)
+  }
+
   const handleSave = async () => {
     if (!file) return alert('Bitte wähle zuerst ein Bild aus!')
     
-    const targetFolder = selectedFolder === 'NEW' ? customFolder.trim() : selectedFolder
+    const targetFolder = isCreatingNewFolder ? customFolder.trim() : selectedFolder
     if (!targetFolder) return alert('Bitte gib einen Ordnernamen ein!')
 
     setLoading(true)
@@ -45,7 +51,6 @@ export default function Scan() {
     try {
       if (!supabase) return
 
-      // Unique Dateiname für Supabase Storage
       const fileExt = file.name.split('.').pop() || 'jpg'
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`
       
@@ -72,46 +77,129 @@ export default function Scan() {
   }
 
   return (
-    <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', boxSizing: 'border-box' }}>
+    <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', boxSizing: 'border-box', fontFamily: 'system-ui, sans-serif' }}>
+      
+      {/* Top Header */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '15px' }}>
-        <Link to="/"><button style={{ padding: '8px 15px', backgroundColor: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '8px', cursor: 'pointer' }}>← Startseite</button></Link>
-        <h2 style={{ margin: 0, fontSize: '22px' }}>🖼️ Foto hochladen</h2>
+        <Link to="/" style={{ textDecoration: 'none' }}>
+          <button style={{ padding: '8px 14px', backgroundColor: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '10px', cursor: 'pointer', fontSize: '14px' }}>
+            ← Zurück
+          </button>
+        </Link>
+        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>📸 Foto hinzufügen</h2>
       </div>
 
-      {preview && (
-        <div style={{ marginBottom: '15px', textAlign: 'center' }}>
-          <img src={preview} alt="Vorschau" style={{ width: '100%', maxHeight: '300px', objectFit: 'cover', borderRadius: '16px', border: '1px solid #334155' }} />
+      {/* Foto Vorschau (falls gewählt) */}
+      {preview ? (
+        <div style={{ marginBottom: '20px', position: 'relative' }}>
+          <img src={preview} alt="Vorschau" style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: '16px', border: '2px solid #3b82f6' }} />
+          <button 
+            onClick={handleClearImage}
+            style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(239, 68, 68, 0.9)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        /* Schritt 1: Bildquelle auswählen */
+        <div style={{ marginBottom: '25px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#94a3b8', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            1. Quelle wählen
+          </label>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <label style={{ backgroundColor: '#1e293b', border: '1px dashed #3b82f6', borderRadius: '16px', padding: '20px 10px', textAlign: 'center', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '32px' }}>🖼️</span>
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>Fotomediathek</span>
+              <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+            </label>
+
+            <label style={{ backgroundColor: '#1e293b', border: '1px dashed #3b82f6', borderRadius: '16px', padding: '20px 10px', textAlign: 'center', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '32px' }}>📷</span>
+              <span style={{ fontSize: '14px', fontWeight: 'bold' }}>Kamera</span>
+              <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{ display: 'none' }} />
+            </label>
+          </div>
         </div>
       )}
 
-      {/* Button für Fotomediathek / Album & Kamera auf dem iPhone */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-        <label style={{ display: 'block', padding: '16px', backgroundColor: '#3b82f6', color: 'white', borderRadius: '14px', fontWeight: 'bold', textAlign: 'center', cursor: 'pointer', fontSize: '16px' }}>
-          {preview ? '🔄 Aus Mediathek / Album ändern' : '📱 Bild aus iPhone-Fotos wählen'}
-          <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+      {/* Schritt 2: Zielordner als Kacheln */}
+      <div style={{ marginBottom: '25px' }}>
+        <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#94a3b8', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          2. Zielordner wählen
         </label>
+        
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {folders.map(f => (
+            <button
+              key={f}
+              onClick={() => { setSelectedFolder(f); setIsCreatingNewFolder(false); }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '20px',
+                border: selectedFolder === f && !isCreatingNewFolder ? '2px solid #3b82f6' : '1px solid #334155',
+                backgroundColor: selectedFolder === f && !isCreatingNewFolder ? '#1d4ed8' : '#1e293b',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: selectedFolder === f && !isCreatingNewFolder ? 'bold' : 'normal',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              📁 {f}
+            </button>
+          ))}
 
-        <label style={{ display: 'block', padding: '12px', backgroundColor: '#1e293b', color: '#94a3b8', border: '1px solid #334155', borderRadius: '14px', fontWeight: 'bold', textAlign: 'center', cursor: 'pointer', fontSize: '14px' }}>
-          📷 Direkt mit Kamera knipsen
-          <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{ display: 'none' }} />
-        </label>
-      </div>
+          <button
+            onClick={() => setIsCreatingNewFolder(true)}
+            style={{
+              padding: '10px 16px',
+              borderRadius: '20px',
+              border: isCreatingNewFolder ? '2px solid #3b82f6' : '1px dashed #64748b',
+              backgroundColor: isCreatingNewFolder ? '#1d4ed8' : 'transparent',
+              color: 'white',
+              fontSize: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            ➕ Neuer Ordner
+          </button>
+        </div>
 
-      <div style={{ marginBottom: '20px', backgroundColor: '#1e293b', padding: '15px', borderRadius: '14px', border: '1px solid #334155' }}>
-        <label style={{ display: 'block', marginBottom: '8px', color: '#94a3b8', fontWeight: 'bold' }}>Zielordner wählen:</label>
-        <select value={selectedFolder} onChange={(e) => setSelectedFolder(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', backgroundColor: '#0f172a', color: 'white', border: '1px solid #334155', fontSize: '16px' }}>
-          {folders.map(f => <option key={f} value={f}>📁 {f}</option>)}
-          <option value="NEW">➕ Neuen Ordner erstellen...</option>
-        </select>
-
-        {selectedFolder === 'NEW' && (
-          <input type="text" placeholder="Neuer Ordnername..." value={customFolder} onChange={(e) => setCustomFolder(e.target.value)} style={{ width: '100%', padding: '12px', marginTop: '10px', borderRadius: '8px', backgroundColor: '#0f172a', color: 'white', border: '1px solid #334155', boxSizing: 'border-box' }} />
+        {isCreatingNewFolder && (
+          <input 
+            type="text" 
+            placeholder="Neuer Ordnername..." 
+            value={customFolder} 
+            onChange={(e) => setCustomFolder(e.target.value)} 
+            autoFocus
+            style={{ width: '100%', padding: '12px', marginTop: '12px', borderRadius: '12px', backgroundColor: '#1e293b', color: 'white', border: '1px solid #3b82f6', fontSize: '15px', boxSizing: 'border-box', outline: 'none' }} 
+          />
         )}
       </div>
 
-      <button onClick={handleSave} disabled={loading} style={{ width: '100%', padding: '18px', backgroundColor: '#22c55e', color: 'white', border: 'none', borderRadius: '14px', fontSize: '18px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer' }}>
-        {loading ? 'Wird hochgeladen...' : '💾 Im gewählten Ordner speichern'}
+      {/* Speichern Button */}
+      <button 
+        onClick={handleSave} 
+        disabled={loading || !file} 
+        style={{ 
+          width: '100%', 
+          padding: '16px', 
+          backgroundColor: file ? '#22c55e' : '#334155', 
+          color: 'white', 
+          border: 'none', 
+          borderRadius: '16px', 
+          fontSize: '17px', 
+          fontWeight: 'bold', 
+          cursor: file && !loading ? 'pointer' : 'not-allowed',
+          opacity: loading ? 0.7 : 1,
+          boxShadow: file ? '0 4px 14px rgba(34, 197, 94, 0.4)' : 'none',
+          transition: 'all 0.2s ease'
+        }}
+      >
+        {loading ? 'Wird hochgeladen...' : file ? `💾 In "${isCreatingNewFolder ? (customFolder || 'Neuer Ordner') : selectedFolder}" speichern` : 'Bitte erst ein Foto wählen'}
       </button>
+
     </div>
   )
 }
