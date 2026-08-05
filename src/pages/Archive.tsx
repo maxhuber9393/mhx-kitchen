@@ -96,14 +96,38 @@ export default function Archive() {
     localStorage.setItem('mhx_archive_photos', JSON.stringify(updated))
   }
 
-  // Foto auf Handy / PC herunterladen
-  const handleDownload = (photoUrl: string) => {
-    const link = document.createElement('a')
-    link.href = photoUrl
-    link.download = `mhx-rezept-${Date.now()}.jpg`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  // Foto auf Handy sichern (über natives Teilen-Menü / Download)
+  const handleDownload = async (photoUrl: string) => {
+    try {
+      // Versuch 1: Über den Blob-Umweg (Nativer Download)
+      const response = await fetch(photoUrl)
+      const blob = await response.blob()
+      
+      // Auf mobilen Geräten: Native Teilen-Funktion nutzen
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], `mhx-rezept-${Date.now()}.jpg`, { type: blob.type })
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'MHX-Kitchen Rezept',
+          })
+          return
+        }
+      }
+
+      // Fallback für Desktop / Standard-Browser
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = `mhx-rezept-${Date.now()}.jpg`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+    } catch (e) {
+      // Fallback falls Fetch/Blob schiefgeht: Foto in neuem Tab öffnen
+      window.open(photoUrl, '_blank')
+    }
   }
 
   // Foto via WhatsApp teilen
