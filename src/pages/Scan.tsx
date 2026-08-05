@@ -33,15 +33,43 @@ export default function Scan() {
     }
   }, [])
 
-  // Bild auswählen / aufnehmen
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
+  // Hilfsfunktion: Bild komprimieren & verkleinern, damit localStorage nicht überläuft
+  const resizeImage = (file: File, maxWidth = 1000): Promise<string> => {
+    return new Promise((resolve) => {
       const reader = new FileReader()
-      reader.onloadend = () => {
-        setSelectedImage(reader.result as string)
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width)
+            width = maxWidth
+          }
+
+          canvas.width = width
+          canvas.height = height
+
+          const ctx = canvas.getContext('2d')
+          ctx?.drawImage(img, 0, 0, width, height)
+
+          // Als komprimiertes JPEG mit 80% Qualität zurückgeben
+          resolve(canvas.toDataURL('image/jpeg', 0.8))
+        }
+        img.src = e.target?.result as string
       }
       reader.readAsDataURL(file)
+    })
+  }
+
+  // Bild auswählen & komprimieren
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      const resizedBase64 = await resizeImage(file)
+      setSelectedImage(resizedBase64)
     }
   }
 
@@ -80,7 +108,7 @@ export default function Scan() {
       // Nach dem Speichern direkt ins Archiv leiten
       navigate('/archive')
     } catch (e) {
-      alert('Speicherfehler: Das Foto ist möglicherweise zu groß für den lokalen Speicher.')
+      alert('Der Speicher ist voll! Bitte lösche ein paar alte Fotos im Papierkorb.')
     }
   }
 
