@@ -9,6 +9,9 @@ interface PhotoItem {
   deletedAt?: string
 }
 
+// Feste Standard-Ordner/Kategorien
+const DEFAULT_CATEGORIES = ['Alle', 'Hauptspeisen', 'Desserts', 'Vorspeisen', 'Gebäck', 'Getränke', 'Sonstiges']
+
 export default function Archive() {
   const [photos, setPhotos] = useState<PhotoItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('Alle')
@@ -27,7 +30,7 @@ export default function Archive() {
     setPhotos(updatedArchive)
     localStorage.setItem('mhx_archive_photos', JSON.stringify(updatedArchive))
 
-    // 2. In den Papierkorb legen (mit aktuellem Datum für den 30-Tage-Timer)
+    // 2. In den Papierkorb legen (mit Datum für den 30-Tage-Timer)
     const savedTrash = localStorage.getItem('mhx_trash_photos')
     const currentTrash: PhotoItem[] = savedTrash ? JSON.parse(savedTrash) : []
 
@@ -52,7 +55,10 @@ export default function Archive() {
     localStorage.setItem('mhx_archive_photos', JSON.stringify(updated))
   }
 
-  const categories = ['Alle', ...Array.from(new Set(photos.map(p => p.category)))]
+  // Alle Kategorien zusammenstellen (Standard-Ordner + eventuell eigene)
+  const customCategories = photos.map(p => p.category)
+  const allCategories = Array.from(new Set([...DEFAULT_CATEGORIES, ...customCategories]))
+
   const filteredPhotos = selectedCategory === 'Alle' 
     ? photos 
     : photos.filter(p => p.category === selectedCategory)
@@ -67,35 +73,33 @@ export default function Archive() {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* Kategorien Filter */}
-      {categories.length > 1 && (
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '16px', marginBottom: '16px' }}>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              style={{
-                backgroundColor: selectedCategory === cat ? '#3b82f6' : '#1e293b',
-                color: 'white',
-                border: '1px solid #334155',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontSize: '13px',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer'
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Kategorien / Ordner Leiste */}
+      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '16px', marginBottom: '16px' }}>
+        {allCategories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            style={{
+              backgroundColor: selectedCategory === cat ? '#3b82f6' : '#1e293b',
+              color: 'white',
+              border: '1px solid #334155',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer'
+            }}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
 
       {/* Fotos Raster */}
       {filteredPhotos.length === 0 ? (
         <div style={{ textAlign: 'center', color: '#64748b', marginTop: '60px' }}>
           <p style={{ fontSize: '48px', marginBottom: '8px' }}>📷</p>
-          <p>Keine Fotos vorhanden.</p>
+          <p>Keine Fotos in dieser Kategorie.</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px' }}>
@@ -106,7 +110,7 @@ export default function Archive() {
               <div style={{ padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <button
                   onClick={() => toggleFavorite(photo.id)}
-                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: 0 }}
+                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: 0, color: photo.favorite ? '#f59e0b' : '#64748b' }}
                 >
                   {photo.favorite ? '⭐' : '☆'}
                 </button>
