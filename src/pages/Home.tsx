@@ -11,7 +11,7 @@ export default function Home() {
     }}>
       
       {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: '28px', marginTop: '12px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '24px', marginTop: '12px' }}>
         <h1 style={{ 
           fontSize: '22px', 
           fontWeight: 'bold', 
@@ -28,100 +28,104 @@ export default function Home() {
         </p>
       </div>
 
-      {/* 2-Spalten Grid (exakt wie im Archiv) */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(2, 1fr)', 
-        gap: '12px' 
-      }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         
-        {/* Foto hochladen */}
+        {/* Hauptbereich: Rezepte hochladen (Groß über die volle Breite) */}
         <Link 
           to="/scan" 
           style={{
             backgroundColor: '#1e293b',
             border: '1px solid #334155',
             borderRadius: '16px',
-            padding: '20px 16px',
+            padding: '24px 20px',
             display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
+            alignItems: 'center',
+            gap: '16px',
             textDecoration: 'none',
             color: 'white'
           }}
         >
-          <div style={{ fontSize: '28px' }}>📷</div>
+          <div style={{ fontSize: '36px' }}>📷</div>
           <div>
-            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>Foto hochladen</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Neues Foto knipsen</div>
+            <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#f8fafc' }}>Rezepte hochladen</div>
+            <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '2px' }}>Neues Foto oder Rezept knipsen</div>
           </div>
         </Link>
 
-        {/* Mein Archiv */}
-        <Link 
-          to="/archive" 
-          style={{
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '16px',
-            padding: '20px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            textDecoration: 'none',
-            color: 'white'
-          }}
-        >
-          <div style={{ fontSize: '28px' }}>📁</div>
-          <div>
-            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>Mein Archiv</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Alle Ordner</div>
-          </div>
-        </Link>
+        {/* Die anderen 3 Bereiche im Raster drunter */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
+          gap: '12px' 
+        }}>
+          
+          {/* Mein Archiv */}
+          <Link 
+            to="/archive" 
+            style={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '16px',
+              padding: '20px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              textDecoration: 'none',
+              color: 'white'
+            }}
+          >
+            <div style={{ fontSize: '28px' }}>📁</div>
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>Mein Archiv</div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Alle Ordner</div>
+            </div>
+          </Link>
 
-        {/* Favoriten */}
-        <Link 
-          to="/favorites" 
-          style={{
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '16px',
-            padding: '20px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            textDecoration: 'none',
-            color: 'white'
-          }}
-        >
-          <div style={{ fontSize: '28px' }}>⭐</div>
-          <div>
-            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>Favoriten</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Lieblingsgerichte</div>
-          </div>
-        </Link>
+          {/* Favoriten */}
+          <Link 
+            to="/favorites" 
+            style={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '16px',
+              padding: '20px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              textDecoration: 'none',
+              color: 'white'
+            }}
+          >
+            <div style={{ fontSize: '28px' }}>⭐</div>
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>Favoriten</div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Lieblingsgerichte</div>
+            </div>
+          </Link>
 
-        {/* Papierkorb */}
-        <Link 
-          to="/trash" 
-          style={{
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '16px',
-            padding: '20px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            textDecoration: 'none',
-            color: 'white'
-          }}
-        >
-          <div style={{ fontSize: '28px' }}>🗑️</div>
-          <div>
-            <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>Papierkorb</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Gelöschte Fotos</div>
-          </div>
-        </Link>
+          {/* Papierkorb */}
+          <Link 
+            to="/trash" 
+            style={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '16px',
+              padding: '20px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              textDecoration: 'none',
+              color: 'white'
+            }}
+          >
+            <div style={{ fontSize: '28px' }}>🗑️</div>
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>Papierkorb</div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Gelöschte Fotos</div>
+            </div>
+          </Link>
+
+        </div>
 
       </div>
     </div>
