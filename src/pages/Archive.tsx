@@ -84,7 +84,7 @@ export default function Archive() {
     localStorage.setItem('mhx_trash_photos', JSON.stringify(updatedTrash))
   }
 
-  // Favorit umschalten (Stern erst gelb bei Klick)
+  // Favorit umschalten
   const toggleFavorite = (id: string) => {
     const updated = photos.map(photo => {
       if (photo.id === id) {
@@ -94,6 +94,22 @@ export default function Archive() {
     })
     setPhotos(updated)
     localStorage.setItem('mhx_archive_photos', JSON.stringify(updated))
+  }
+
+  // Foto auf Handy / PC herunterladen
+  const handleDownload = (photoUrl: string) => {
+    const link = document.createElement('a')
+    link.href = photoUrl
+    link.download = `mhx-rezept-${Date.now()}.jpg`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // Foto via WhatsApp teilen
+  const handleWhatsAppShare = (photoUrl: string) => {
+    const text = encodeURIComponent(`Schau dir dieses Rezept an: ${photoUrl}`)
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank')
   }
 
   // Anzahl Fotos pro Ordner berechnen
@@ -220,25 +236,50 @@ export default function Archive() {
               <p>Keine Fotos im Ordner "{selectedFolder}".</p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
               {folderPhotos.map(photo => (
                 <div key={photo.id} style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
                   <img src={photo.url} alt={photo.category} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
                   
-                  <div style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* Aktionsleiste unter dem Foto */}
+                  <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                    {/* Favoriten-Stern */}
                     <button
                       onClick={() => toggleFavorite(photo.id)}
-                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: 0, color: photo.favorite ? '#f59e0b' : '#64748b' }}
+                      title="Favorit"
+                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px', color: photo.favorite ? '#f59e0b' : '#64748b' }}
                     >
                       {photo.favorite ? '⭐' : '☆'}
                     </button>
 
-                    <button
-                      onClick={() => handleDelete(photo)}
-                      style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
-                    >
-                      🗑️ Löschen
-                    </button>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      {/* WhatsApp Button */}
+                      <button
+                        onClick={() => handleWhatsAppShare(photo.url)}
+                        title="Per WhatsApp teilen"
+                        style={{ backgroundColor: '#25d366', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        💬
+                      </button>
+
+                      {/* Download / Auf Handy sichern Button */}
+                      <button
+                        onClick={() => handleDownload(photo.url)}
+                        title="Auf Handy sichern"
+                        style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        💾
+                      </button>
+
+                      {/* Löschen Button */}
+                      <button
+                        onClick={() => handleDelete(photo)}
+                        title="Löschen"
+                        style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', height: '28px' }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
