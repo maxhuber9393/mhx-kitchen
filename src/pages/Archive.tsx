@@ -16,12 +16,11 @@ interface FolderGroup {
   coverUrl: string
 }
 
-// 📌 Immer sichtbare Standard-Ordner
 const DEFAULT_FOLDERS = ['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke']
 
 export default function Archive() {
   const [photos, setPhotos] = useState<Photo[]>([])
-  const [activeFolder, setActiveFolder] = useState<string | null>(null) // null = Ordner-Übersicht
+  const [activeFolder, setActiveFolder] = useState<string | null>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
 
@@ -48,7 +47,6 @@ export default function Archive() {
     setLoading(false)
   }
 
-  // Kombination aus Standard-Ordnern + dynamischen Ordnern aus der Supabase-Datenbank
   const dynamicFolders = photos.map(p => p.folder_name).filter(Boolean)
   const allFolderNames = Array.from(new Set([...DEFAULT_FOLDERS, ...dynamicFolders]))
 
@@ -57,7 +55,7 @@ export default function Archive() {
     return {
       name: folderName,
       count: folderPhotos.length,
-      coverUrl: folderPhotos[0]?.image_url || '' // Erstes Bild als Cover (falls vorhanden)
+      coverUrl: folderPhotos[0]?.image_url || ''
     }
   })
 
@@ -104,6 +102,44 @@ export default function Archive() {
     }
   }
 
+  // 📲 WhatsApp / native Teilen-Funktion
+  const handleShare = async (imageUrl: string) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Rezept aus MHX-KITCHEN',
+          text: 'Schau dir dieses Gericht aus meiner MHX-KITCHEN an! 🍳',
+          url: imageUrl,
+        })
+      } catch (err) {
+        console.log('Teilen abgebrochen oder fehlgeschlagen', err)
+      }
+    } else {
+      // Fallback für Browser, die die Web Share API nicht unterstützen
+      const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent('Schau dir dieses Foto an: ' + imageUrl)}`
+      window.open(whatsappUrl, '_blank')
+    }
+  }
+
+  // 💾 Foto herunterladen
+  const handleDownload = async (imageUrl: string) => {
+    try {
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = `mhx-kitchen-${Date.now()}.jpg`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+    } catch (error) {
+      // Fallback: Öffnet das Bild im neuen Tab zum manuellen Speichern
+      window.open(imageUrl, '_blank')
+    }
+  }
+
   const activePhotos = activeFolder ? photos.filter(p => p.folder_name === activeFolder) : []
 
   return (
@@ -139,7 +175,7 @@ export default function Archive() {
         </div>
       ) : activeFolder === null ? (
         
-        /* 1. ORDNER-ÜBERSICHT (Standard-Ordner sind IMMER da) */
+        /* ORDNER-ÜBERSICHT */
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
           {folderGroups.map((folder) => (
             <div
@@ -155,7 +191,6 @@ export default function Archive() {
                 transition: 'transform 0.15s ease'
               }}
             >
-              {/* Ordner Vorschaubild */}
               <div style={{ width: '100%', paddingTop: '80%', position: 'relative', backgroundColor: '#0f172a' }}>
                 {folder.coverUrl ? (
                   <img
@@ -169,7 +204,6 @@ export default function Archive() {
                   </div>
                 )}
                 
-                {/* Badge mit Foto-Anzahl */}
                 <span style={{
                   position: 'absolute',
                   top: '10px',
@@ -187,7 +221,6 @@ export default function Archive() {
                 </span>
               </div>
 
-              {/* Ordner Name unten */}
               <div style={{ padding: '14px', backgroundColor: '#1e293b', textAlign: 'center' }}>
                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   📁 {folder.name}
@@ -199,7 +232,7 @@ export default function Archive() {
 
       ) : (
 
-        /* 2. FOTO-ANSICHT (Beim Klick auf einen Ordner) */
+        /* FOTO-ANSICHT */
         <div>
           {activePhotos.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '50px 20px', backgroundColor: '#1e293b', borderRadius: '16px', border: '1px dashed #334155' }}>
@@ -236,7 +269,6 @@ export default function Archive() {
                       style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
                     />
 
-                    {/* Favoriten Star */}
                     <button
                       onClick={() => toggleFavorite(photo.id, photo.is_favorite)}
                       style={{
@@ -259,7 +291,6 @@ export default function Archive() {
                     </button>
                   </div>
 
-                  {/* Löschen Button */}
                   <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'flex-end', backgroundColor: '#1e293b' }}>
                     <button
                       onClick={() => handleDelete(photo.id, photo.image_url)}
@@ -275,20 +306,101 @@ export default function Archive() {
         </div>
       )}
 
-      {/* Lightbox / Vollbild-Ansicht */}
+      {/* Lightbox / Vollbild-Ansicht mit Teilen & Speichern */}
       {selectedPhoto && (
         <div
-          onClick={() => setSelectedPhoto(null)}
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.94)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
         >
-          <div style={{ position: 'relative', maxWidth: '100%', maxHeight: '100%' }}>
-            <img src={selectedPhoto} alt="Vollbild" style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '12px', objectFit: 'contain' }} />
+          {/* Schließen Button oben rechts */}
+          <button
+            onClick={() => setSelectedPhoto(null)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              backgroundColor: '#334155',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '36px',
+              height: '36px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            ✕
+          </button>
+
+          {/* Vorschaubild */}
+          <img
+            src={selectedPhoto}
+            alt="Vollbild"
+            style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '16px', objectFit: 'contain', marginBottom: '20px' }}
+          />
+
+          {/* Aktions-Buttons: Teilen & Speichern */}
+          <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '350px' }}>
+            
+            {/* WhatsApp / Teilen Button */}
             <button
-              onClick={() => setSelectedPhoto(null)}
-              style={{ position: 'absolute', top: '-40px', right: '0', backgroundColor: 'white', color: 'black', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 'bold', cursor: 'pointer' }}
+              onClick={() => handleShare(selectedPhoto)}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                backgroundColor: '#25D366',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
+              }}
             >
-              ✕
+              💬 WhatsApp
             </button>
+
+            {/* Speichern Button */}
+            <button
+              onClick={() => handleDownload(selectedPhoto)}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+              }}
+            >
+              💾 Speichern
+            </button>
+
           </div>
         </div>
       )}
