@@ -8,7 +8,7 @@ import Trash from './pages/Trash'
 export default function App() {
   return (
     <Router>
-      <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', pb: '80px' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', paddingBottom: '80px' }}>
         
         {/* Haupt-Routen */}
         <Routes>
@@ -28,7 +28,7 @@ export default function App() {
           backgroundColor: '#1e293b',
           borderTop: '1px solid #334155',
           display: 'flex',
-          justify: 'space-around',
+          justifyContent: 'space-around',
           alignItems: 'center',
           padding: '10px 0',
           zIndex: 40
