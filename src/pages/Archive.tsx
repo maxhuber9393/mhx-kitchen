@@ -6,10 +6,9 @@ export default function Archive() {
   const [selectedPhoto, setSelectedPhoto] = useState<any>(null)
   const [currentFolder, setCurrentFolder] = useState<string | null>(null)
 
-  // Standard-Ordner festlegen
   const defaultFolders = ['Hauptspeisen', 'Desserts', 'Vorspeisen', 'Snacks', 'Getränke', 'Sonstiges']
 
-  // Fotos aus Supabase oder LocalStorage laden
+  // Bilder beim Start laden
   useEffect(() => {
     loadPhotos()
   }, [])
@@ -18,7 +17,7 @@ export default function Archive() {
     try {
       if (supabase) {
         const { data, error } = await supabase.from('photos').select('*')
-        if (data && !error) {
+        if (data && !error && data.length > 0) {
           setPhotos(data)
           return
         }
@@ -28,7 +27,7 @@ export default function Archive() {
         setPhotos(JSON.parse(local))
       }
     } catch (e) {
-      console.error(e)
+      console.error("Fehler beim Laden:", e)
     }
   }
 
@@ -78,7 +77,6 @@ export default function Archive() {
     }
   }
 
-  // Gefilterte Fotos
   const filteredPhotos = currentFolder 
     ? photos.filter(p => p.folder === currentFolder)
     : photos
@@ -86,7 +84,7 @@ export default function Archive() {
   return (
     <div style={{ padding: '20px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
       
-      {/* Header */}
+      {/* Kopfzeile */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
         <h1 style={{ margin: 0, fontSize: '24px' }}>📁 Mein Archiv</h1>
         {currentFolder && (
@@ -99,9 +97,9 @@ export default function Archive() {
         )}
       </div>
 
-      {/* Ordner-Übersicht (falls kein Ordner ausgewählt ist) */}
+      {/* Ordner-Ansicht */}
       {!currentFolder && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '30px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '24px' }}>
           {defaultFolders.map((folder) => {
             const count = photos.filter(p => p.folder === folder).length
             return (
@@ -119,36 +117,44 @@ export default function Archive() {
         </div>
       )}
 
-      {/* Fotos-Raster */}
+      {/* Bilder-Raster */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-        {filteredPhotos.map((photo) => (
-          <div 
-            key={photo.id}
-            onClick={() => setSelectedPhoto(photo)}
-            style={{ position: 'relative', height: '160px', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', backgroundColor: '#1e293b' }}
-          >
-            <img 
-              src={photo.url} 
-              alt="Gericht" 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-            />
-            {/* Stern Icon */}
-            <button
-              onClick={(e) => toggleFavorite(e, photo)}
-              style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        {filteredPhotos.map((photo) => {
+          const imageUrl = photo.url || photo.image_url || photo.src
+          return (
+            <div 
+              key={photo.id}
+              onClick={() => setSelectedPhoto(photo)}
+              style={{ position: 'relative', height: '160px', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', backgroundColor: '#1e293b' }}
             >
-              {photo.isFavorite ? '⭐' : '☆'}
-            </button>
-          </div>
-        ))}
+              {imageUrl ? (
+                <img 
+                  src={imageUrl} 
+                  alt="Rezept" 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>Kein Bild</div>
+              )}
+              
+              {/* Favoriten Stern */}
+              <button
+                onClick={(e) => toggleFavorite(e, photo)}
+                style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: photo.isFavorite ? '#f59e0b' : 'white' }}
+              >
+                {photo.isFavorite ? '★' : '☆'}
+              </button>
+            </div>
+          )
+        })}
       </div>
 
-      {/* Lightbox Modal */}
+      {/* Lightbox Modal mit allen Buttons */}
       {selectedPhoto && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }}>
           
           <img 
-            src={selectedPhoto.url} 
+            src={selectedPhoto.url || selectedPhoto.image_url || selectedPhoto.src} 
             alt="Vorschau" 
             style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '16px' }} 
           />
@@ -157,14 +163,14 @@ export default function Archive() {
           <div style={{ marginTop: '20px', display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#1e293b', padding: '10px 14px', borderRadius: '40px', border: '1px solid #334155', maxWidth: '95vw', overflowX: 'auto' }}>
             
             <button 
-              onClick={() => handleWhatsAppShare(selectedPhoto.url)}
+              onClick={() => handleWhatsAppShare(selectedPhoto.url || selectedPhoto.image_url || selectedPhoto.src)}
               style={{ backgroundColor: '#25D366', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', whiteSpace: 'nowrap' }}
             >
               💬 WhatsApp
             </button>
 
             <a 
-              href={selectedPhoto.url} 
+              href={selectedPhoto.url || selectedPhoto.image_url || selectedPhoto.src} 
               download="rezept-foto.jpg"
               style={{ backgroundColor: '#3b82f6', color: 'white', textDecoration: 'none', borderRadius: '20px', padding: '10px 14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', whiteSpace: 'nowrap' }}
             >
