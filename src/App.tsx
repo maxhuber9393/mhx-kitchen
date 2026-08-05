@@ -1,6 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Home from './pages/Home'
 import Trash from './pages/Trash'
+import Archive from './pages/Archive'
+import Favorites from './pages/Favorites'
+import Scan from './pages/Scan'
 
 export default function App() {
   return (
@@ -8,6 +11,9 @@ export default function App() {
       <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', paddingBottom: '70px' }}>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/archive" element={<Archive />} />
+          <Route path="/favorites" element={<Favorites />} />
+          <Route path="/scan" element={<Scan />} />
           <Route path="/trash" element={<Trash />} />
         </Routes>
 
@@ -27,6 +33,18 @@ export default function App() {
           <Link to="/" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
             <div style={{ fontSize: '20px' }}>🏠</div>
             Start
+          </Link>
+          <Link to="/archive" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
+            <div style={{ fontSize: '20px' }}>📁</div>
+            Archiv
+          </Link>
+          <Link to="/scan" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
+            <div style={{ fontSize: '20px' }}>📷</div>
+            Scannen
+          </Link>
+          <Link to="/favorites" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
+            <div style={{ fontSize: '20px' }}>⭐</div>
+            Favoriten
           </Link>
           <Link to="/trash" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
             <div style={{ fontSize: '20px' }}>🗑️</div>
