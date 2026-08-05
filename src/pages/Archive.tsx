@@ -9,6 +9,7 @@ interface PhotoItem {
   deletedAt?: string
 }
 
+// Feste Standard-Ordner (nicht umbenennbar)
 const DEFAULT_FOLDERS = [
   'Hauptspeisen',
   'Desserts',
@@ -21,6 +22,10 @@ const DEFAULT_FOLDERS = [
 export default function Archive() {
   const [photos, setPhotos] = useState<PhotoItem[]>([])
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
+  
+  // Zustand für das Umbenennen von Ordnern
+  const [editingFolder, setEditingFolder] = useState<string | null>(null)
+  const [newFolderName, setNewFolderName] = useState<string>('')
 
   useEffect(() => {
     const saved = localStorage.getItem('mhx_archive_photos')
@@ -28,6 +33,31 @@ export default function Archive() {
       setPhotos(JSON.parse(saved))
     }
   }, [])
+
+  // Alle Ordner laden (Standard + benutzerspezifische)
+  const customCategories = photos.map(p => p.category)
+  const allFolders = Array.from(new Set([...DEFAULT_FOLDERS, ...customCategories]))
+
+  // Ordner umbenennen & alle zugehörigen Fotos aktualisieren
+  const handleRenameFolder = (oldFolder: string) => {
+    const trimmedName = newFolderName.trim()
+    if (!trimmedName || trimmedName === oldFolder) {
+      setEditingFolder(null)
+      return
+    }
+
+    const updatedPhotos = photos.map(photo => {
+      if (photo.category === oldFolder) {
+        return { ...photo, category: trimmedName }
+      }
+      return photo
+    })
+
+    setPhotos(updatedPhotos)
+    localStorage.setItem('mhx_archive_photos', JSON.stringify(updatedPhotos))
+    setEditingFolder(null)
+    setNewFolderName('')
+  }
 
   // Foto in den Papierkorb verschieben
   const handleDelete = (photoToDelete: PhotoItem) => {
@@ -90,30 +120,88 @@ export default function Archive() {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* ANSICHT 1: Ordner-Kacheln (Wie auf deinem Screenshot) */}
+      {/* ANSICHT 1: Ordner-Kacheln */}
       {!selectedFolder && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-          {DEFAULT_FOLDERS.map(folderName => (
-            <div
-              key={folderName}
-              onClick={() => setSelectedFolder(folderName)}
-              style={{
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
-                borderRadius: '12px',
-                padding: '20px',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                transition: 'transform 0.1s ease'
-              }}
-            >
-              <div style={{ fontSize: '28px' }}>📁</div>
-              <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>{folderName}</div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>{getPhotoCount(folderName)} Fotos</div>
-            </div>
-          ))}
+          {allFolders.map(folderName => {
+            // Prüfen ob es ein Standard-Ordner ist
+            const isDefaultFolder = DEFAULT_FOLDERS.includes(folderName)
+
+            return (
+              <div
+                key={folderName}
+                style={{
+                  backgroundColor: '#1e293b',
+                  border: '1px solid #334155',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  position: 'relative'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ fontSize: '28px', cursor: 'pointer' }} onClick={() => setSelectedFolder(folderName)}>
+                    📁
+                  </div>
+                  {/* Umbenennen Button NUR anzeigen, wenn es KEIN Standard-Ordner ist */}
+                  {!isDefaultFolder && editingFolder !== folderName && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingFolder(folderName)
+                        setNewFolderName(folderName)
+                      }}
+                      title="Ordner umbenennen"
+                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px', padding: '4px' }}
+                    >
+                      ✏️
+                    </button>
+                  )}
+                </div>
+
+                {/* Wenn gerade umbenannt wird */}
+                {editingFolder === folderName ? (
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                    <input
+                      type="text"
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      autoFocus
+                      style={{
+                        backgroundColor: '#0f172a',
+                        color: 'white',
+                        border: '1px solid #3b82f6',
+                        borderRadius: '6px',
+                        padding: '6px 8px',
+                        fontSize: '14px',
+                        width: '100%'
+                      }}
+                    />
+                    <button
+                      onClick={() => handleRenameFolder(folderName)}
+                      style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', cursor: 'pointer' }}
+                    >
+                      OK
+                    </button>
+                    <button
+                      onClick={() => setEditingFolder(null)}
+                      style={{ backgroundColor: '#475569', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', cursor: 'pointer' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  /* Normale Ordneranzeige */
+                  <div onClick={() => setSelectedFolder(folderName)} style={{ cursor: 'pointer' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: '#f8fafc' }}>{folderName}</div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>{getPhotoCount(folderName)} Fotos</div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
