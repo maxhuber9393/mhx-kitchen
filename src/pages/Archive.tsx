@@ -8,16 +8,22 @@ interface Photo {
   folder?: string
   folder_name?: string
   category?: string
-  tag?: string
-  type?: string
   created_at?: string
   is_favorite?: boolean
-  [key: string]: any
 }
+
+interface FolderGroup {
+  name: string
+  count: number
+  coverUrl: string
+}
+
+// 📌 Diese Ordner werden IMMER im Archiv angezeigt
+const DEFAULT_FOLDERS = ['Hauptspeisen', 'Desserts', 'Snacks', 'Getränke']
 
 export default function Archive() {
   const [photos, setPhotos] = useState<Photo[]>([])
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
+  const [activeFolder, setActiveFolder] = useState<string | null>(null) // null = Ordner-Übersicht
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
 
@@ -36,29 +42,40 @@ export default function Archive() {
     if (error) {
       console.error('Fehler beim Laden:', error)
     } else {
-      console.log('Geladene Fotos aus Supabase:', data)
       setPhotos(data || [])
     }
     setLoading(false)
   }
 
-  // Hilfsfunktion: Versucht dynamisch den Ordnernamen aus allen möglichen Datenbank-Spalten auszulesen
+  // Hilfsfunktion: Ermittelt den Ordnernamen flexibel
   const getFolderName = (p: Photo): string => {
-    const foundName = p.folder || p.folder_name || p.category || p.tag || p.type
-    if (foundName && typeof foundName === 'string' && foundName.trim() !== '') {
-      return foundName
-    }
-    return 'Sonstiges'
+    return p.folder || p.folder_name || p.category || 'Unkategorisiert'
   }
 
+  // Combine feste Standard-Ordner + Ordner aus Supabase
+  const dynamicFolders = photos.map(p => getFolderName(p))
+  const allFolderNames = Array.from(new Set([...DEFAULT_FOLDERS, ...dynamicFolders]))
+
+  const folderGroups: FolderGroup[] = allFolderNames.map(folderName => {
+    const folderPhotos = photos.filter(p => getFolderName(p) === folderName)
+    return {
+      name: folderName,
+      count: folderPhotos.length,
+      coverUrl: folderPhotos[0]?.image_url || ''
+    }
+  })
+
+  // ⭐ Favorit umschalten (Sofort gelb & Supabase Update)
   const toggleFavorite = async (photo: Photo, e: React.MouseEvent) => {
     e.stopPropagation()
     const newStatus = !photo.is_favorite
 
+    // 1. Sofort im State ändern, damit er gelb bleibt!
     setPhotos(prev =>
       prev.map(p => (p.id === photo.id ? { ...p, is_favorite: newStatus } : p))
     )
 
+    // 2. In Supabase speichern
     if (supabase) {
       const { error } = await supabase
         .from('photos')
@@ -66,143 +83,174 @@ export default function Archive() {
         .eq('id', photo.id)
 
       if (error) {
-        console.error('Fehler beim Speichern des Favoriten in Supabase:', error)
+        console.error('Fehler beim Speichern in Supabase:', error)
       }
     }
   }
 
-  // Alle eindeutigen Ordnernamen ermitteln
-  const folders = Array.from(new Set(photos.map(p => getFolderName(p)))).sort()
-
-  const filteredPhotos = selectedFolder
-    ? photos.filter(p => getFolderName(p) === selectedFolder)
-    : photos
+  const activePhotos = activeFolder
+    ? photos.filter(p => getFolderName(p) === activeFolder)
+    : []
 
   return (
     <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
       
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-        <Link to="/" style={{ textDecoration: 'none' }}>
-          <button style={{ padding: '8px 14px', backgroundColor: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '10px', cursor: 'pointer' }}>
-            ← Zurück
-          </button>
-        </Link>
-        <h2 style={{ margin: 0, fontSize: '20px' }}>📁 Mein Archiv</h2>
+      {/* Top Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '25px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {activeFolder ? (
+            <button
+              onClick={() => setActiveFolder(null)}
+              style={{ padding: '8px 14px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+            >
+              ← Alle Ordner
+            </button>
+          ) : (
+            <Link to="/" style={{ textDecoration: 'none' }}>
+              <button style={{ padding: '8px 14px', backgroundColor: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '10px', cursor: 'pointer', fontSize: '14px' }}>
+                ← Zurück
+              </button>
+            </Link>
+          )}
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>
+            {activeFolder ? `📁 ${activeFolder}` : '📁 Mein Archiv'}
+          </h2>
+        </div>
       </div>
 
-      {/* Ordner-Filter / Kategorien-Buttons */}
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '16px' }}>
-        <button
-          onClick={() => setSelectedFolder(null)}
-          style={{
-            padding: '8px 14px',
-            borderRadius: '20px',
-            border: 'none',
-            backgroundColor: selectedFolder === null ? '#3b82f6' : '#1e293b',
-            color: 'white',
-            fontWeight: selectedFolder === null ? 'bold' : 'normal',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          Alle ({photos.length})
-        </button>
-        {folders.map(folder => (
-          <button
-            key={folder}
-            onClick={() => setSelectedFolder(folder)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '20px',
-              border: 'none',
-              backgroundColor: selectedFolder === folder ? '#3b82f6' : '#1e293b',
-              color: 'white',
-              fontWeight: selectedFolder === folder ? 'bold' : 'normal',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {folder} ({photos.filter(p => getFolderName(p) === folder).length})
-          </button>
-        ))}
-      </div>
-
-      {/* Galerie */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Lade Archiv... ⏳</div>
-      ) : filteredPhotos.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Keine Fotos in dieser Kategorie vorhanden.</div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-          {filteredPhotos.map(photo => (
+        <div style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>
+          Lade Archiv... ⏳
+        </div>
+      ) : activeFolder === null ? (
+        
+        /* 1. ANSICHT: ORDNER-KACHELN (Hauptspeisen, Desserts, Snacks, Getränke) */
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+          {folderGroups.map((folder) => (
             <div
-              key={photo.id}
-              onClick={() => setSelectedPhoto(photo.image_url)}
+              key={folder.name}
+              onClick={() => setActiveFolder(folder.name)}
               style={{
-                position: 'relative',
-                paddingTop: '100%',
-                borderRadius: '14px',
-                overflow: 'hidden',
                 backgroundColor: '#1e293b',
+                borderRadius: '18px',
+                overflow: 'hidden',
                 border: '1px solid #334155',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                boxShadow: '0 6px 16px rgba(0, 0, 0, 0.3)'
               }}
             >
-              <img
-                src={photo.image_url}
-                alt={getFolderName(photo)}
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-
-              {/* Ordner-Label unten auf dem Bild */}
-              <div
-                style={{
+              {/* Vorschaubild der Kachel */}
+              <div style={{ width: '100%', paddingTop: '80%', position: 'relative', backgroundColor: '#0f172a' }}>
+                {folder.coverUrl ? (
+                  <img
+                    src={folder.coverUrl}
+                    alt={folder.name}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', color: '#64748b' }}>
+                    📁
+                  </div>
+                )}
+                
+                {/* Badge Foto-Anzahl */}
+                <span style={{
                   position: 'absolute',
-                  bottom: '8px',
-                  left: '8px',
-                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                  color: '#94a3b8',
-                  padding: '4px 8px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
+                  top: '10px',
+                  right: '10px',
+                  backgroundColor: folder.count > 0 ? 'rgba(15, 23, 42, 0.85)' : 'rgba(30, 41, 59, 0.7)',
+                  color: folder.count > 0 ? '#3b82f6' : '#94a3b8',
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  border: '1px solid #334155',
                   backdropFilter: 'blur(4px)'
-                }}
-              >
-                {getFolderName(photo)}
+                }}>
+                  {folder.count} {folder.count === 1 ? 'Foto' : 'Fotos'}
+                </span>
               </div>
 
-              {/* 🌟 Favoriten-Stern oben rechts */}
-              <button
-                onClick={(e) => toggleFavorite(photo, e)}
-                style={{
-                  position: 'absolute',
-                  top: '8px',
-                  right: '8px',
-                  backgroundColor: photo.is_favorite ? '#f59e0b' : 'rgba(15, 23, 42, 0.75)',
-                  border: photo.is_favorite ? '2px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.4)',
-                  borderRadius: '50%',
-                  width: '38px',
-                  height: '38px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '20px',
-                  color: photo.is_favorite ? '#ffffff' : '#fbbf24',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
-                  backdropFilter: 'blur(4px)',
-                  zIndex: 10
-                }}
-              >
-                ★
-              </button>
+              <div style={{ padding: '14px', backgroundColor: '#1e293b', textAlign: 'center' }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  📁 {folder.name}
+                </h3>
+              </div>
             </div>
           ))}
         </div>
+
+      ) : (
+
+        /* 2. ANSICHT: FOTOS IN DEM ORDNER */
+        <div>
+          {activePhotos.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '50px 20px', backgroundColor: '#1e293b', borderRadius: '16px', border: '1px dashed #334155' }}>
+              <span style={{ fontSize: '40px', display: 'block', marginBottom: '10px' }}>🍽️</span>
+              <p style={{ margin: 0, fontSize: '15px', color: '#94a3b8' }}>
+                Der Ordner <strong>"{activeFolder}"</strong> ist noch leer.
+              </p>
+              <Link to="/scan" style={{ textDecoration: 'none' }}>
+                <button style={{ marginTop: '15px', padding: '10px 20px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Jetzt Foto hochladen
+                </button>
+              </Link>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
+              {activePhotos.map((photo) => (
+                <div
+                  key={photo.id}
+                  onClick={() => setSelectedPhoto(photo.image_url)}
+                  style={{
+                    position: 'relative',
+                    paddingTop: '100%',
+                    borderRadius: '16px',
+                    overflow: 'hidden',
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <img
+                    src={photo.image_url}
+                    alt={getFolderName(photo)}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+
+                  {/* 🌟 Gelber Stern-Button */}
+                  <button
+                    onClick={(e) => toggleFavorite(photo, e)}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      backgroundColor: photo.is_favorite ? '#f59e0b' : 'rgba(15, 23, 42, 0.75)',
+                      border: photo.is_favorite ? '2px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.4)',
+                      borderRadius: '50%',
+                      width: '38px',
+                      height: '38px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '20px',
+                      color: photo.is_favorite ? '#ffffff' : '#fbbf24',
+                      boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                      backdropFilter: 'blur(4px)',
+                      zIndex: 10
+                    }}
+                  >
+                    ★
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Vollbild-Ansicht */}
+      {/* Vollbild Lightbox */}
       {selectedPhoto && (
         <div
           onClick={() => setSelectedPhoto(null)}
@@ -212,7 +260,7 @@ export default function Archive() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.9)',
+            backgroundColor: 'rgba(0,0,0,0.92)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -220,7 +268,7 @@ export default function Archive() {
             padding: '20px'
           }}
         >
-          <img src={selectedPhoto} alt="Vollbild" style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '12px' }} />
+          <img src={selectedPhoto} alt="Vollbild" style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '14px' }} />
         </div>
       )}
 
