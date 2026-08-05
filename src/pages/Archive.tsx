@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 
 interface PhotoItem {
@@ -25,6 +25,15 @@ export default function Archive() {
   const [photos, setPhotos] = useState<PhotoItem[]>([])
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   
+  // Zustand für Großansicht (Preview)
+  const [activePhoto, setActivePhoto] = useState<PhotoItem | null>(null)
+
+  // Zoom & Pan Status für die Großansicht
+  const [scale, setScale] = useState(1)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const isDragging = useRef(false)
+  const startPos = useRef({ x: 0, y: 0 })
+
   // Zustand für das Umbenennen von Ordnern
   const [editingFolder, setEditingFolder] = useState<string | null>(null)
   const [newFolderName, setNewFolderName] = useState<string>('')
@@ -35,6 +44,13 @@ export default function Archive() {
       setPhotos(JSON.parse(saved))
     }
   }, [])
+
+  // Zoom zurücksetzen, wenn ein neues Foto geöffnet wird
+  const openPhotoModal = (photo: PhotoItem) => {
+    setScale(1)
+    setPosition({ x: 0, y: 0 })
+    setActivePhoto(photo)
+  }
 
   // Alle Ordner laden (Standard + custom Ordner)
   const customCategories = photos.map(p => p.category)
@@ -82,6 +98,10 @@ export default function Archive() {
 
     const updatedTrash = [...currentTrash, photoForTrash]
     localStorage.setItem('mhx_trash_photos', JSON.stringify(updatedTrash))
+
+    if (activePhoto?.id === photoToDelete.id) {
+      setActivePhoto(null)
+    }
   }
 
   // Favorit umschalten
@@ -94,16 +114,18 @@ export default function Archive() {
     })
     setPhotos(updated)
     localStorage.setItem('mhx_archive_photos', JSON.stringify(updated))
+
+    if (activePhoto?.id === id) {
+      setActivePhoto(prev => prev ? { ...prev, favorite: !prev.favorite } : null)
+    }
   }
 
-  // Foto auf Handy sichern (über natives Teilen-Menü / Download)
+  // Foto auf Handy sichern
   const handleDownload = async (photoUrl: string) => {
     try {
-      // Versuch 1: Über den Blob-Umweg (Nativer Download)
       const response = await fetch(photoUrl)
       const blob = await response.blob()
       
-      // Auf mobilen Geräten: Native Teilen-Funktion nutzen
       if (navigator.share && navigator.canShare) {
         const file = new File([blob], `mhx-rezept-${Date.now()}.jpg`, { type: blob.type })
         if (navigator.canShare({ files: [file] })) {
@@ -115,7 +137,6 @@ export default function Archive() {
         }
       }
 
-      // Fallback für Desktop / Standard-Browser
       const blobUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = blobUrl
@@ -125,7 +146,6 @@ export default function Archive() {
       document.body.removeChild(link)
       URL.revokeObjectURL(blobUrl)
     } catch (e) {
-      // Fallback falls Fetch/Blob schiefgeht: Foto in neuem Tab öffnen
       window.open(photoUrl, '_blank')
     }
   }
@@ -139,6 +159,38 @@ export default function Archive() {
   // Anzahl Fotos pro Ordner berechnen
   const getPhotoCount = (folderName: string) => {
     return photos.filter(p => p.category === folderName).length
+  }
+
+  // Zoom-Logik
+  const handleDoubleClick = () => {
+    if (scale > 1) {
+      setScale(1)
+      setPosition({ x: 0, y: 0 })
+    } else {
+      setScale(2.5)
+    }
+  }
+
+  // Touch & Drag Handling fürs Verschieben
+  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    isDragging.current = true
+    startPos.current = { x: clientX - position.x, y: clientY - position.y }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!isDragging.current || scale === 1) return
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    setPosition({
+      x: clientX - startPos.current.x,
+      y: clientY - startPos.current.y
+    })
+  }
+
+  const handleTouchEnd = () => {
+    isDragging.current = false
   }
 
   // Fotos des aktuell geöffneten Ordners
@@ -263,11 +315,14 @@ export default function Archive() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
               {folderPhotos.map(photo => (
                 <div key={photo.id} style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
-                  <img src={photo.url} alt={photo.category} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
+                  <img 
+                    src={photo.url} 
+                    alt={photo.category} 
+                    onClick={() => openPhotoModal(photo)}
+                    style={{ width: '100%', height: '140px', objectFit: 'cover', cursor: 'pointer' }} 
+                  />
                   
-                  {/* Aktionsleiste unter dem Foto */}
                   <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
-                    {/* Favoriten-Stern */}
                     <button
                       onClick={() => toggleFavorite(photo.id)}
                       title="Favorit"
@@ -277,7 +332,6 @@ export default function Archive() {
                     </button>
 
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                      {/* WhatsApp Button */}
                       <button
                         onClick={() => handleWhatsAppShare(photo.url)}
                         title="Per WhatsApp teilen"
@@ -286,7 +340,6 @@ export default function Archive() {
                         💬
                       </button>
 
-                      {/* Download / Auf Handy sichern Button */}
                       <button
                         onClick={() => handleDownload(photo.url)}
                         title="Auf Handy sichern"
@@ -295,7 +348,6 @@ export default function Archive() {
                         💾
                       </button>
 
-                      {/* Löschen Button */}
                       <button
                         onClick={() => handleDelete(photo)}
                         title="Löschen"
@@ -311,6 +363,120 @@ export default function Archive() {
           )}
         </div>
       )}
+
+      {/* MODAL / GROSSANSICHT MIT ZOOM */}
+      {activePhoto && (
+        <div 
+          onClick={() => setActivePhoto(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.95)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '16px',
+            touchAction: 'none'
+          }}
+        >
+          {/* Schließen Button */}
+          <button 
+            onClick={() => setActivePhoto(null)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              backgroundColor: '#334155',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              fontSize: '20px',
+              cursor: 'pointer',
+              zIndex: 10000
+            }}
+          >
+            ✕
+          </button>
+
+          {/* Bildbereich mit Zoom & Pan */}
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            onDoubleClick={handleDoubleClick}
+            onMouseDown={handleTouchStart}
+            onMouseMove={handleTouchMove}
+            onMouseUp={handleTouchEnd}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            style={{ 
+              maxWidth: '100%', 
+              maxHeight: '75vh', 
+              overflow: 'hidden',
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              cursor: scale > 1 ? 'grab' : 'zoom-in'
+            }}
+          >
+            <img 
+              src={activePhoto.url} 
+              alt="Großansicht" 
+              style={{ 
+                maxWidth: '100%', 
+                maxHeight: '70vh', 
+                objectFit: 'contain', 
+                borderRadius: '12px', 
+                transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+                transition: isDragging.current ? 'none' : 'transform 0.2s ease',
+                userSelect: 'none'
+              }} 
+            />
+          </div>
+
+          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', zIndex: 10000 }}>
+            Tipp: Doppelklick zum Zoomen & Wischen zum Verschieben
+          </div>
+
+          {/* Aktionsleiste */}
+          <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: '12px', marginTop: '12px', backgroundColor: '#1e293b', padding: '10px 20px', borderRadius: '12px', border: '1px solid #334155', zIndex: 10000 }}>
+            <button
+              onClick={() => toggleFavorite(activePhoto.id)}
+              style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: activePhoto.favorite ? '#f59e0b' : '#64748b' }}
+            >
+              {activePhoto.favorite ? '⭐' : '☆'}
+            </button>
+
+            <button
+              onClick={() => handleWhatsAppShare(activePhoto.url)}
+              style={{ backgroundColor: '#25d366', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              💬 Teilen
+            </button>
+
+            <button
+              onClick={() => handleDownload(activePhoto.url)}
+              style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              💾 Sichern
+            </button>
+
+            <button
+              onClick={() => handleDelete(activePhoto)}
+              style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
