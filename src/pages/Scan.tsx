@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-const FOLDERS = [
+const DEFAULT_FOLDERS = [
   'Hauptspeisen',
   'Desserts',
   'Vorspeisen',
@@ -13,7 +13,21 @@ const FOLDERS = [
 export default function Scan() {
   const navigate = useNavigate()
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [folders, setFolders] = useState<string[]>(DEFAULT_FOLDERS)
   const [selectedFolder, setSelectedFolder] = useState<string>('Hauptspeisen')
+  const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false)
+  const [newFolderName, setNewFolderName] = useState<string>('')
+
+  // Alle bereits existierenden Custom-Ordner aus den gespeicherten Fotos laden
+  useEffect(() => {
+    const savedArchive = localStorage.getItem('mhx_archive_photos')
+    if (savedArchive) {
+      const photos = JSON.parse(savedArchive)
+      const existingCategories: string[] = photos.map((p: any) => p.category)
+      const allUniqueFolders = Array.from(new Set([...DEFAULT_FOLDERS, ...existingCategories]))
+      setFolders(allUniqueFolders)
+    }
+  }, [])
 
   // Bild auswählen / aufnehmen
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,14 +41,29 @@ export default function Scan() {
     }
   }
 
+  // Dropdown-Änderung abfangen (prüfen ob "Neuer Ordner" gewählt wurde)
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value
+    if (value === 'NEW_FOLDER') {
+      setIsCreatingNew(true)
+    } else {
+      setIsCreatingNew(false)
+      setSelectedFolder(value)
+    }
+  }
+
   // Foto im Archiv speichern
   const handleSave = () => {
     if (!selectedImage) return
 
+    // Wenn ein neuer Ordner eingegeben wurde, nimm diesen, sonst den ausgewählten
+    const finalFolder = isCreatingNew ? newFolderName.trim() : selectedFolder
+    if (!finalFolder) return
+
     const newPhoto = {
       id: Date.now().toString(),
       url: selectedImage,
-      category: selectedFolder,
+      category: finalFolder,
       favorite: false
     }
 
@@ -95,8 +124,8 @@ export default function Scan() {
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#94a3b8' }}>Ziel-Ordner wählen:</label>
           <select 
-            value={selectedFolder}
-            onChange={(e) => setSelectedFolder(e.target.value)}
+            value={isCreatingNew ? 'NEW_FOLDER' : selectedFolder}
+            onChange={handleFolderSelect}
             style={{
               width: '100%',
               backgroundColor: '#1e293b',
@@ -108,25 +137,49 @@ export default function Scan() {
               outline: 'none'
             }}
           >
-            {FOLDERS.map(folder => (
+            {folders.map(folder => (
               <option key={folder} value={folder}>{folder}</option>
             ))}
+            <option value="NEW_FOLDER">➕ Neuen Ordner erstellen...</option>
           </select>
+
+          {/* Eingabefeld für neuen Ordnernamen */}
+          {isCreatingNew && (
+            <div style={{ marginTop: '12px' }}>
+              <input 
+                type="text"
+                placeholder="Name des neuen Ordners..."
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#0f172a',
+                  color: 'white',
+                  border: '1px solid #3b82f6',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  fontSize: '15px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Speichern Button */}
         <button
           onClick={handleSave}
-          disabled={!selectedImage}
+          disabled={!selectedImage || (isCreatingNew && !newFolderName.trim())}
           style={{
-            backgroundColor: selectedImage ? '#3b82f6' : '#334155',
-            color: selectedImage ? 'white' : '#64748b',
+            backgroundColor: (selectedImage && (!isCreatingNew || newFolderName.trim())) ? '#3b82f6' : '#334155',
+            color: (selectedImage && (!isCreatingNew || newFolderName.trim())) ? 'white' : '#64748b',
             border: 'none',
             padding: '16px',
             borderRadius: '12px',
             fontSize: '16px',
             fontWeight: 'bold',
-            cursor: selectedImage ? 'pointer' : 'not-allowed',
+            cursor: (selectedImage && (!isCreatingNew || newFolderName.trim())) ? 'pointer' : 'not-allowed',
             marginTop: '10px'
           }}
         >
