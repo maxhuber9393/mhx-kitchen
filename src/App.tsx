@@ -28,6 +28,18 @@ export default function App() {
             <div style={{ fontSize: '20px' }}>🏠</div>
             Start
           </Link>
+          <Link to="/archive" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
+            <div style={{ fontSize: '20px' }}>📁</div>
+            Archiv
+          </Link>
+          <Link to="/scan" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
+            <div style={{ fontSize: '20px' }}>📷</div>
+            Scannen
+          </Link>
+          <Link to="/favorites" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
+            <div style={{ fontSize: '20px' }}>⭐</div>
+            Favoriten
+          </Link>
           <Link to="/trash" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
             <div style={{ fontSize: '20px' }}>🗑️</div>
             Müll
