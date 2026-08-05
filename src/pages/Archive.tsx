@@ -1,215 +1,127 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../supabase'
+import { Link } from 'react-router-dom'
+
+interface PhotoItem {
+  id: string
+  url: string
+  category: string
+  favorite?: boolean
+  deletedAt?: string
+}
 
 export default function Archive() {
-  const [photos, setPhotos] = useState<any[]>([])
-  const [selectedPhoto, setSelectedPhoto] = useState<any>(null)
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<PhotoItem[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string>('Alle')
 
-  const defaultFolders = ['Hauptspeisen', 'Desserts', 'Vorspeisen', 'Snacks', 'Getränke', 'Sonstiges']
-
-  // Bilder beim Start laden
   useEffect(() => {
-    loadPhotos()
+    const saved = localStorage.getItem('mhx_archive_photos')
+    if (saved) {
+      setPhotos(JSON.parse(saved))
+    }
   }, [])
 
-  const loadPhotos = async () => {
-    try {
-      if (supabase) {
-        const { data, error } = await supabase.from('photos').select('*').eq('isDeleted', false)
-        if (data && !error && data.length > 0) {
-          setPhotos(data)
-          return
-        }
-      }
-      const local = localStorage.getItem('mhx_photos')
-      if (local) {
-        setPhotos(JSON.parse(local))
-      }
-    } catch (e) {
-      console.error("Fehler beim Laden:", e)
+  // Foto löschen -> Wandert in den Papierkorb (mhx_trash_photos)
+  const handleDelete = (photoToDelete: PhotoItem) => {
+    // 1. Aus dem Archiv entfernen
+    const updatedArchive = photos.filter(item => item.id !== photoToDelete.id)
+    setPhotos(updatedArchive)
+    localStorage.setItem('mhx_archive_photos', JSON.stringify(updatedArchive))
+
+    // 2. In den Papierkorb legen (mit aktuellem Datum für den 30-Tage-Timer)
+    const savedTrash = localStorage.getItem('mhx_trash_photos')
+    const currentTrash: PhotoItem[] = savedTrash ? JSON.parse(savedTrash) : []
+
+    const photoForTrash = {
+      ...photoToDelete,
+      deletedAt: new Date().toISOString()
     }
+
+    const updatedTrash = [...currentTrash, photoForTrash]
+    localStorage.setItem('mhx_trash_photos', JSON.stringify(updatedTrash))
   }
 
-  // WhatsApp Teilen
-  const handleWhatsAppShare = (url: string) => {
-    const text = encodeURIComponent(`Schau dir dieses Rezept/Foto an: ${url}`)
-    window.open(`https://wa.me/?text=${text}`, '_blank')
-  }
-
-  // Foto in den Papierkorb verschieben (30-Tage System)
-  const handleDeletePhoto = async (photoId: string) => {
-    const confirmDelete = window.confirm("Möchtest du dieses Bild in den Papierkorb verschieben?")
-    if (!confirmDelete) return
-
-    try {
-      const photoToDelete = photos.find(p => p.id === photoId)
-      if (!photoToDelete) return
-
-      // 1. Aus der Archiv-Ansicht entfernen
-      const updatedArchive = photos.filter((p) => p.id !== photoId)
-      setPhotos(updatedArchive)
-      localStorage.setItem('mhx_photos', JSON.stringify(updatedArchive))
-
-      // 2. In den Papierkorb speichern (mit Lösch-Datum für die 30 Tage)
-      const currentTrash = JSON.parse(localStorage.getItem('mhx_trash') || '[]')
-      currentTrash.push({
-        ...photoToDelete,
-        deletedAt: Date.now()
-      })
-      localStorage.setItem('mhx_trash', JSON.stringify(currentTrash))
-
-      // 3. Supabase-Status aktualisieren (falls Supabase genutzt wird)
-      if (supabase) {
-        await supabase.from('photos').update({ isDeleted: true, deletedAt: new Date() }).eq('id', photoId)
+  // Favoriten-Status umschalten
+  const toggleFavorite = (id: string) => {
+    const updated = photos.map(photo => {
+      if (photo.id === id) {
+        return { ...photo, favorite: !photo.favorite }
       }
-
-      setSelectedPhoto(null)
-    } catch (error) {
-      console.error("Fehler beim Verschieben in den Papierkorb:", error)
-      alert("Das Bild konnte nicht in den Papierkorb verschoben werden.")
-    }
-  }
-
-  // Favorit umschalten
-  const toggleFavorite = async (e: React.MouseEvent, photo: any) => {
-    e.stopPropagation()
-    const updatedPhotos = photos.map(p => {
-      if (p.id === photo.id) {
-        return { ...p, isFavorite: !p.isFavorite }
-      }
-      return p
+      return photo
     })
-    setPhotos(updatedPhotos)
-    localStorage.setItem('mhx_photos', JSON.stringify(updatedPhotos))
-
-    if (supabase) {
-      await supabase.from('photos').update({ isFavorite: !photo.isFavorite }).eq('id', photo.id)
-    }
+    setPhotos(updated)
+    localStorage.setItem('mhx_archive_photos', JSON.stringify(updated))
   }
 
-  const filteredPhotos = currentFolder 
-    ? photos.filter(p => p.folder === currentFolder)
-    : photos
+  const categories = ['Alle', ...Array.from(new Set(photos.map(p => p.category)))]
+  const filteredPhotos = selectedCategory === 'Alle' 
+    ? photos 
+    : photos.filter(p => p.category === selectedCategory)
 
   return (
-    <div style={{ padding: '20px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ padding: '24px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
       
-      {/* Kopfzeile */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <h1 style={{ margin: 0, fontSize: '24px' }}>📁 Mein Archiv</h1>
-        {currentFolder && (
-          <button 
-            onClick={() => setCurrentFolder(null)}
-            style={{ backgroundColor: '#334155', color: 'white', border: 'none', borderRadius: '12px', padding: '8px 12px', cursor: 'pointer', fontSize: '13px' }}
-          >
-            ← Alle Ordner
-          </button>
-        )}
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '18px' }}>← Startseite</Link>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>📁 Mein Archiv</h1>
+        <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* Ordner-Ansicht */}
-      {!currentFolder && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '24px' }}>
-          {defaultFolders.map((folder) => {
-            const count = photos.filter(p => p.folder === folder).length
-            return (
-              <div 
-                key={folder}
-                onClick={() => setCurrentFolder(folder)}
-                style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '16px', cursor: 'pointer' }}
-              >
-                <div style={{ fontSize: '24px', marginBottom: '6px' }}>📂</div>
-                <div style={{ fontWeight: 'bold', fontSize: '15px' }}>{folder}</div>
-                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>{count} Foto{count !== 1 ? 's' : ''}</div>
-              </div>
-            )
-          })}
+      {/* Kategorien Filter */}
+      {categories.length > 1 && (
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '16px', marginBottom: '16px' }}>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              style={{
+                backgroundColor: selectedCategory === cat ? '#3b82f6' : '#1e293b',
+                color: 'white',
+                border: '1px solid #334155',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                fontSize: '13px',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer'
+              }}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Bilder-Raster */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-        {filteredPhotos.map((photo) => {
-          const imageUrl = photo.url || photo.image_url || photo.src
-          return (
-            <div 
-              key={photo.id}
-              onClick={() => setSelectedPhoto(photo)}
-              style={{ position: 'relative', height: '160px', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer', backgroundColor: '#1e293b' }}
-            >
-              {imageUrl ? (
-                <img 
-                  src={imageUrl} 
-                  alt="Rezept" 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                />
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>Kein Bild</div>
-              )}
+      {/* Fotos Raster */}
+      {filteredPhotos.length === 0 ? (
+        <div style={{ textAlign: 'center', color: '#64748b', marginTop: '60px' }}>
+          <p style={{ fontSize: '48px', marginBottom: '8px' }}>📷</p>
+          <p>Keine Fotos vorhanden.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px' }}>
+          {filteredPhotos.map(photo => (
+            <div key={photo.id} style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155', position: 'relative' }}>
+              <img src={photo.url} alt={photo.category} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
               
-              {/* Favoriten Stern */}
-              <button
-                onClick={(e) => toggleFavorite(e, photo)}
-                style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: photo.isFavorite ? '#f59e0b' : 'white' }}
-              >
-                {photo.isFavorite ? '★' : '☆'}
-              </button>
+              <div style={{ padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  onClick={() => toggleFavorite(photo.id)}
+                  style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: 0 }}
+                >
+                  {photo.favorite ? '⭐' : '☆'}
+                </button>
+
+                <button
+                  onClick={() => handleDelete(photo)}
+                  style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  🗑️ Löschen
+                </button>
+              </div>
             </div>
-          )
-        })}
-      </div>
-
-      {/* Lightbox Modal */}
-      {selectedPhoto && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }}>
-          
-          <img 
-            src={selectedPhoto.url || selectedPhoto.image_url || selectedPhoto.src} 
-            alt="Vorschau" 
-            style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '16px' }} 
-          />
-
-          {/* Aktionsleiste */}
-          <div style={{ marginTop: '20px', display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#1e293b', padding: '10px 14px', borderRadius: '40px', border: '1px solid #334155', maxWidth: '95vw', overflowX: 'auto' }}>
-            
-            {/* 1. WhatsApp */}
-            <button 
-              onClick={() => handleWhatsAppShare(selectedPhoto.url || selectedPhoto.image_url || selectedPhoto.src)}
-              style={{ backgroundColor: '#25D366', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', whiteSpace: 'nowrap' }}
-            >
-              💬 WhatsApp
-            </button>
-
-            {/* 2. Speichern */}
-            <a 
-              href={selectedPhoto.url || selectedPhoto.image_url || selectedPhoto.src} 
-              download="rezept-foto.jpg"
-              style={{ backgroundColor: '#3b82f6', color: 'white', textDecoration: 'none', borderRadius: '20px', padding: '10px 14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', whiteSpace: 'nowrap' }}
-            >
-              💾 Speichern
-            </a>
-
-            {/* 3. In den Papierkorb verschieben */}
-            <button 
-              onClick={() => handleDeletePhoto(selectedPhoto.id)}
-              style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', whiteSpace: 'nowrap' }}
-            >
-              🗑️ Löschen
-            </button>
-
-            {/* 4. Schließen (X) */}
-            <button 
-              onClick={() => setSelectedPhoto(null)}
-              style={{ backgroundColor: '#475569', color: 'white', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}
-            >
-              ✕
-            </button>
-
-          </div>
+          ))}
         </div>
       )}
-
     </div>
   )
 }
