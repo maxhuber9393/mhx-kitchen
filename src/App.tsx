@@ -1,21 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import Home from './pages/Home'
-import Archive from './pages/Archive'
-import Favorites from './pages/Favorites'
-import Scan from './pages/Scan'
 import Trash from './pages/Trash'
 
 export default function App() {
   return (
     <Router>
-      <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', paddingBottom: '80px' }}>
-        
-        {/* Haupt-Routen */}
+      <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', paddingBottom: '70px' }}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/archive" element={<Archive />} />
-          <Route path="/favorites" element={<Favorites />} />
-          <Route path="/scan" element={<Scan />} />
           <Route path="/trash" element={<Trash />} />
         </Routes>
 
@@ -28,37 +20,19 @@ export default function App() {
           backgroundColor: '#1e293b',
           borderTop: '1px solid #334155',
           display: 'flex',
-          justifyContent: 'space-around',
-          alignItems: 'center',
+          justifyaround: 'space-around',
           padding: '10px 0',
-          zIndex: 40
+          zIndex: 1000
         }}>
-          <Link to="/" style={{ color: 'white', textDecoration: 'none', fontSize: '12px', textAlign: 'center' }}>
-            <div>🏠</div>
-            <div>Home</div>
+          <Link to="/" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
+            <div style={{ fontSize: '20px' }}>🏠</div>
+            Start
           </Link>
-
-          <Link to="/archive" style={{ color: 'white', textDecoration: 'none', fontSize: '12px', textAlign: 'center' }}>
-            <div>📁</div>
-            <div>Archiv</div>
-          </Link>
-
-          <Link to="/scan" style={{ color: 'white', textDecoration: 'none', fontSize: '12px', textAlign: 'center' }}>
-            <div>📷</div>
-            <div>Scannen</div>
-          </Link>
-
-          <Link to="/favorites" style={{ color: 'white', textDecoration: 'none', fontSize: '12px', textAlign: 'center' }}>
-            <div>⭐</div>
-            <div>Favoriten</div>
-          </Link>
-
-          <Link to="/trash" style={{ color: 'white', textDecoration: 'none', fontSize: '12px', textAlign: 'center' }}>
-            <div>🗑️</div>
-            <div>Papierkorb</div>
+          <Link to="/trash" style={{ color: 'white', textDecoration: 'none', textAlign: 'center', fontSize: '12px' }}>
+            <div style={{ fontSize: '20px' }}>🗑️</div>
+            Müll
           </Link>
         </nav>
-
       </div>
     </Router>
   )
