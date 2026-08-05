@@ -9,15 +9,17 @@ interface PhotoItem {
   deletedAt?: string
 }
 
-// Feste Standard-Ordner (nicht umbenennbar)
-const DEFAULT_FOLDERS = [
-  'Hauptspeisen',
-  'Desserts',
-  'Vorspeisen',
-  'Snacks',
-  'Getränke',
-  'Sonstiges'
-]
+// Feste Standard-Ordner mit ihren eigenen Symbolen
+const DEFAULT_FOLDERS: { [key: string]: string } = {
+  'Hauptspeisen': '🍲',
+  'Desserts': '🍰',
+  'Vorspeisen': '🥗',
+  'Snacks': '🍿',
+  'Getränke': '🍹',
+  'Sonstiges': '📦'
+}
+
+const DEFAULT_FOLDER_NAMES = Object.keys(DEFAULT_FOLDERS)
 
 export default function Archive() {
   const [photos, setPhotos] = useState<PhotoItem[]>([])
@@ -34,9 +36,14 @@ export default function Archive() {
     }
   }, [])
 
-  // Alle Ordner laden (Standard + benutzerspezifische)
+  // Alle Ordner laden (Standard + custom Ordner)
   const customCategories = photos.map(p => p.category)
-  const allFolders = Array.from(new Set([...DEFAULT_FOLDERS, ...customCategories]))
+  const allFolders = Array.from(new Set([...DEFAULT_FOLDER_NAMES, ...customCategories]))
+
+  // Hilfsfunktion: Gibt das Icon für den Ordner zurück
+  const getFolderIcon = (folderName: string) => {
+    return DEFAULT_FOLDERS[folderName] || '📂'
+  }
 
   // Ordner umbenennen & alle zugehörigen Fotos aktualisieren
   const handleRenameFolder = (oldFolder: string) => {
@@ -115,16 +122,16 @@ export default function Archive() {
           <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '16px' }}>← Startseite</Link>
         )}
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          📂 {selectedFolder ? selectedFolder : 'Mein Archiv'}
+          {selectedFolder ? `${getFolderIcon(selectedFolder)} ${selectedFolder}` : '📂 Mein Archiv'}
         </h1>
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* ANSICHT 1: Ordner-Kacheln als übersichtliches Raster nebeneinander */}
+      {/* ANSICHT 1: Ordner-Kacheln mit Icons nebeneinander */}
       {!selectedFolder && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
           {allFolders.map(folderName => {
-            const isDefaultFolder = DEFAULT_FOLDERS.includes(folderName)
+            const isDefaultFolder = DEFAULT_FOLDER_NAMES.includes(folderName)
 
             return (
               <div
@@ -141,8 +148,8 @@ export default function Archive() {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ fontSize: '24px', cursor: 'pointer' }} onClick={() => setSelectedFolder(folderName)}>
-                    📁
+                  <div style={{ fontSize: '28px', cursor: 'pointer' }} onClick={() => setSelectedFolder(folderName)}>
+                    {getFolderIcon(folderName)}
                   </div>
                   {!isDefaultFolder && editingFolder !== folderName && (
                     <button
