@@ -16,7 +16,7 @@ export default function Archive() {
   const loadPhotos = async () => {
     try {
       if (supabase) {
-        const { data, error } = await supabase.from('photos').select('*')
+        const { data, error } = await supabase.from('photos').select('*').eq('isDeleted', false)
         if (data && !error && data.length > 0) {
           setPhotos(data)
           return
@@ -37,26 +37,37 @@ export default function Archive() {
     window.open(`https://wa.me/?text=${text}`, '_blank')
   }
 
-  // Foto löschen
-  const handleDeletePhoto = async (photoId: string, imagePath?: string) => {
-    const confirmDelete = window.confirm("Möchtest du dieses Bild wirklich löschen?")
+  // Foto in den Papierkorb verschieben (30-Tage System)
+  const handleDeletePhoto = async (photoId: string) => {
+    const confirmDelete = window.confirm("Möchtest du dieses Bild in den Papierkorb verschieben?")
     if (!confirmDelete) return
 
     try {
+      const photoToDelete = photos.find(p => p.id === photoId)
+      if (!photoToDelete) return
+
+      // 1. Aus der Archiv-Ansicht entfernen
+      const updatedArchive = photos.filter((p) => p.id !== photoId)
+      setPhotos(updatedArchive)
+      localStorage.setItem('mhx_photos', JSON.stringify(updatedArchive))
+
+      // 2. In den Papierkorb speichern (mit Lösch-Datum für die 30 Tage)
+      const currentTrash = JSON.parse(localStorage.getItem('mhx_trash') || '[]')
+      currentTrash.push({
+        ...photoToDelete,
+        deletedAt: Date.now()
+      })
+      localStorage.setItem('mhx_trash', JSON.stringify(currentTrash))
+
+      // 3. Supabase-Status aktualisieren (falls Supabase genutzt wird)
       if (supabase) {
-        if (imagePath) {
-          await supabase.storage.from('photos').remove([imagePath])
-        }
-        await supabase.from('photos').delete().eq('id', photoId)
+        await supabase.from('photos').update({ isDeleted: true, deletedAt: new Date() }).eq('id', photoId)
       }
 
-      const updated = photos.filter((p) => p.id !== photoId)
-      setPhotos(updated)
-      localStorage.setItem('mhx_photos', JSON.stringify(updated))
       setSelectedPhoto(null)
     } catch (error) {
-      console.error("Fehler beim Löschen:", error)
-      alert("Das Bild konnte nicht gelöscht werden.")
+      console.error("Fehler beim Verschieben in den Papierkorb:", error)
+      alert("Das Bild konnte nicht in den Papierkorb verschoben werden.")
     }
   }
 
@@ -149,7 +160,7 @@ export default function Archive() {
         })}
       </div>
 
-      {/* Lightbox Modal mit allen Buttons */}
+      {/* Lightbox Modal */}
       {selectedPhoto && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }}>
           
@@ -162,6 +173,7 @@ export default function Archive() {
           {/* Aktionsleiste */}
           <div style={{ marginTop: '20px', display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#1e293b', padding: '10px 14px', borderRadius: '40px', border: '1px solid #334155', maxWidth: '95vw', overflowX: 'auto' }}>
             
+            {/* 1. WhatsApp */}
             <button 
               onClick={() => handleWhatsAppShare(selectedPhoto.url || selectedPhoto.image_url || selectedPhoto.src)}
               style={{ backgroundColor: '#25D366', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', whiteSpace: 'nowrap' }}
@@ -169,6 +181,7 @@ export default function Archive() {
               💬 WhatsApp
             </button>
 
+            {/* 2. Speichern */}
             <a 
               href={selectedPhoto.url || selectedPhoto.image_url || selectedPhoto.src} 
               download="rezept-foto.jpg"
@@ -177,13 +190,15 @@ export default function Archive() {
               💾 Speichern
             </a>
 
+            {/* 3. In den Papierkorb verschieben */}
             <button 
-              onClick={() => handleDeletePhoto(selectedPhoto.id, selectedPhoto.path)}
+              onClick={() => handleDeletePhoto(selectedPhoto.id)}
               style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '20px', padding: '10px 14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', whiteSpace: 'nowrap' }}
             >
               🗑️ Löschen
             </button>
 
+            {/* 4. Schließen (X) */}
             <button 
               onClick={() => setSelectedPhoto(null)}
               style={{ backgroundColor: '#475569', color: 'white', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '13px', flexShrink: 0 }}
