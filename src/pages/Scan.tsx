@@ -18,14 +18,18 @@ export default function Scan() {
   const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false)
   const [newFolderName, setNewFolderName] = useState<string>('')
 
-  // Alle bereits existierenden Custom-Ordner aus den gespeicherten Fotos laden
+  // Alle bereits existierenden Ordner laden
   useEffect(() => {
     const savedArchive = localStorage.getItem('mhx_archive_photos')
     if (savedArchive) {
-      const photos = JSON.parse(savedArchive)
-      const existingCategories: string[] = photos.map((p: any) => p.category)
-      const allUniqueFolders = Array.from(new Set([...DEFAULT_FOLDERS, ...existingCategories]))
-      setFolders(allUniqueFolders)
+      try {
+        const photos = JSON.parse(savedArchive)
+        const existingCategories: string[] = photos.map((p: any) => p.category).filter(Boolean)
+        const allUniqueFolders = Array.from(new Set([...DEFAULT_FOLDERS, ...existingCategories]))
+        setFolders(allUniqueFolders)
+      } catch (e) {
+        console.error('Fehler beim Laden der Ordner', e)
+      }
     }
   }, [])
 
@@ -41,7 +45,7 @@ export default function Scan() {
     }
   }
 
-  // Dropdown-Änderung abfangen (prüfen ob "Neuer Ordner" gewählt wurde)
+  // Dropdown-Änderung
   const handleFolderSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value
     if (value === 'NEW_FOLDER') {
@@ -56,29 +60,28 @@ export default function Scan() {
   const handleSave = () => {
     if (!selectedImage) return
 
-    // Wenn ein neuer Ordner eingegeben wurde, nimm diesen, sonst den ausgewählten
-    const finalFolder = isCreatingNew ? newFolderName.trim() : selectedFolder
-    if (!finalFolder) return
+    const targetCategory = isCreatingNew ? newFolderName.trim() : selectedFolder
+    if (!targetCategory) return
 
     const newPhoto = {
       id: Date.now().toString(),
       url: selectedImage,
-      category: finalFolder,
+      category: targetCategory,
       favorite: false
     }
 
-    // Aus LocalStorage laden
-    const savedArchive = localStorage.getItem('mhx_archive_photos')
-    const currentArchive = savedArchive ? JSON.parse(savedArchive) : []
-    
-    // Neues Bild hinzufügen
-    const updatedArchive = [...currentArchive, newPhoto]
-    
-    // Speichern
-    localStorage.setItem('mhx_archive_photos', JSON.stringify(updatedArchive))
-
-    // Zurück zum Archiv leiten
-    navigate('/archive')
+    try {
+      const savedArchive = localStorage.getItem('mhx_archive_photos')
+      const currentArchive = savedArchive ? JSON.parse(savedArchive) : []
+      const updatedArchive = [...currentArchive, newPhoto]
+      
+      localStorage.setItem('mhx_archive_photos', JSON.stringify(updatedArchive))
+      
+      // Nach dem Speichern direkt ins Archiv leiten
+      navigate('/archive')
+    } catch (e) {
+      alert('Speicherfehler: Das Foto ist möglicherweise zu groß für den lokalen Speicher.')
+    }
   }
 
   return (
@@ -87,13 +90,13 @@ export default function Scan() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '16px' }}>← Startseite</Link>
-        <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>📷 Foto hochladen</h1>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>📷 Rezepte hochladen</h1>
         <div style={{ width: '60px' }}></div>
       </div>
 
       <div style={{ maxWidth: '500px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         
-        {/* Foto Auswählen / Kamera */}
+        {/* Foto-Auswahl */}
         <div style={{ backgroundColor: '#1e293b', border: '2px dashed #334155', borderRadius: '12px', padding: '30px', textAlign: 'center' }}>
           {selectedImage ? (
             <div>
@@ -143,7 +146,6 @@ export default function Scan() {
             <option value="NEW_FOLDER">➕ Neuen Ordner erstellen...</option>
           </select>
 
-          {/* Eingabefeld für neuen Ordnernamen */}
           {isCreatingNew && (
             <div style={{ marginTop: '12px' }}>
               <input 
@@ -151,6 +153,7 @@ export default function Scan() {
                 placeholder="Name des neuen Ordners..."
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
+                autoFocus
                 style={{
                   width: '100%',
                   backgroundColor: '#0f172a',
