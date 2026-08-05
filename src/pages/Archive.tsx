@@ -5,9 +5,14 @@ import { Link } from 'react-router-dom'
 interface Photo {
   id: string
   image_url: string
-  folder_name: string
+  folder?: string
+  folder_name?: string
+  category?: string
+  tag?: string
+  type?: string
   created_at?: string
   is_favorite?: boolean
+  [key: string]: any
 }
 
 export default function Archive() {
@@ -31,45 +36,46 @@ export default function Archive() {
     if (error) {
       console.error('Fehler beim Laden:', error)
     } else {
+      console.log('Geladene Fotos aus Supabase:', data)
       setPhotos(data || [])
     }
     setLoading(false)
   }
 
-  // ⭐ Favoriten-Status umschalten & in Supabase speichern
+  // Hilfsfunktion: Versucht dynamisch den Ordnernamen aus allen möglichen Datenbank-Spalten auszulesen
+  const getFolderName = (p: Photo): string => {
+    const foundName = p.folder || p.folder_name || p.category || p.tag || p.type
+    if (foundName && typeof foundName === 'string' && foundName.trim() !== '') {
+      return foundName
+    }
+    return 'Sonstiges'
+  }
+
   const toggleFavorite = async (photo: Photo, e: React.MouseEvent) => {
-    e.stopPropagation() // Verhindert, dass das Foto-Modal geöffnet wird
-    if (!supabase) return
+    e.stopPropagation()
+    const newStatus = !photo.is_favorite
 
-    const newFavoriteStatus = !photo.is_favorite
-
-    // 1. Zuverlässig im lokalen Zustand aktualisieren (Sofortiges Feedback)
-    setPhotos(prevPhotos =>
-      prevPhotos.map(p =>
-        p.id === photo.id ? { ...p, is_favorite: newFavoriteStatus } : p
-      )
+    setPhotos(prev =>
+      prev.map(p => (p.id === photo.id ? { ...p, is_favorite: newStatus } : p))
     )
 
-    // 2. In Supabase Datenbank speichern
-    const { error } = await supabase
-      .from('photos')
-      .update({ is_favorite: newFavoriteStatus })
-      .eq('id', photo.id)
+    if (supabase) {
+      const { error } = await supabase
+        .from('photos')
+        .update({ is_favorite: newStatus })
+        .eq('id', photo.id)
 
-    if (error) {
-      console.error('Fehler beim Speichern des Favoriten-Status:', error)
-      // Bei Fehler den Zustand zurückrollen
-      setPhotos(prevPhotos =>
-        prevPhotos.map(p =>
-          p.id === photo.id ? { ...p, is_favorite: photo.is_favorite } : p
-        )
-      )
+      if (error) {
+        console.error('Fehler beim Speichern des Favoriten in Supabase:', error)
+      }
     }
   }
 
-  const folders = Array.from(new Set(photos.map(p => p.folder_name)))
+  // Alle eindeutigen Ordnernamen ermitteln
+  const folders = Array.from(new Set(photos.map(p => getFolderName(p)))).sort()
+
   const filteredPhotos = selectedFolder
-    ? photos.filter(p => p.folder_name === selectedFolder)
+    ? photos.filter(p => getFolderName(p) === selectedFolder)
     : photos
 
   return (
@@ -85,7 +91,7 @@ export default function Archive() {
         <h2 style={{ margin: 0, fontSize: '20px' }}>📁 Mein Archiv</h2>
       </div>
 
-      {/* Ordner-Filter */}
+      {/* Ordner-Filter / Kategorien-Buttons */}
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '16px' }}>
         <button
           onClick={() => setSelectedFolder(null)}
@@ -117,7 +123,7 @@ export default function Archive() {
               whiteSpace: 'nowrap'
             }}
           >
-            {folder}
+            {folder} ({photos.filter(p => getFolderName(p) === folder).length})
           </button>
         ))}
       </div>
@@ -125,6 +131,8 @@ export default function Archive() {
       {/* Galerie */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Lade Archiv... ⏳</div>
+      ) : filteredPhotos.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Keine Fotos in dieser Kategorie vorhanden.</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
           {filteredPhotos.map(photo => (
@@ -143,19 +151,36 @@ export default function Archive() {
             >
               <img
                 src={photo.image_url}
-                alt={photo.folder_name}
+                alt={getFolderName(photo)}
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
               />
 
-              {/* 🌟 Gut sichtbarer ⭐-Button oben rechts */}
+              {/* Ordner-Label unten auf dem Bild */}
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  left: '8px',
+                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                  color: '#94a3b8',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  backdropFilter: 'blur(4px)'
+                }}
+              >
+                {getFolderName(photo)}
+              </div>
+
+              {/* 🌟 Favoriten-Stern oben rechts */}
               <button
                 onClick={(e) => toggleFavorite(photo, e)}
                 style={{
                   position: 'absolute',
                   top: '8px',
                   right: '8px',
-                  backgroundColor: photo.is_favorite ? 'rgba(245, 158, 11, 0.95)' : 'rgba(15, 23, 42, 0.75)',
-                  border: photo.is_favorite ? '2px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.3)',
+                  backgroundColor: photo.is_favorite ? '#f59e0b' : 'rgba(15, 23, 42, 0.75)',
+                  border: photo.is_favorite ? '2px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.4)',
                   borderRadius: '50%',
                   width: '38px',
                   height: '38px',
@@ -164,20 +189,20 @@ export default function Archive() {
                   justifyContent: 'center',
                   cursor: 'pointer',
                   fontSize: '20px',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.4)',
+                  color: photo.is_favorite ? '#ffffff' : '#fbbf24',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
                   backdropFilter: 'blur(4px)',
-                  transition: 'all 0.2s ease'
+                  zIndex: 10
                 }}
-                title={photo.is_favorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
               >
-                {photo.is_favorite ? '⭐' : '☆'}
+                ★
               </button>
             </div>
           ))}
         </div>
       )}
 
-      {/* Lightbox / Vollbild-Modal */}
+      {/* Vollbild-Ansicht */}
       {selectedPhoto && (
         <div
           onClick={() => setSelectedPhoto(null)}
