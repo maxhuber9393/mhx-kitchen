@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 interface PhotoItem {
@@ -9,7 +9,6 @@ interface PhotoItem {
   deletedAt?: string
 }
 
-// Feste Standard-Ordner mit ihren eigenen Symbolen
 const DEFAULT_FOLDERS: { [key: string]: string } = {
   'Hauptspeisen': '🍲',
   'Desserts': '🍰',
@@ -25,14 +24,8 @@ export default function Archive() {
   const [photos, setPhotos] = useState<PhotoItem[]>([])
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   
-  // Zustand für Großansicht (Preview)
+  // Zustand für Großansicht (Lightbox)
   const [activePhoto, setActivePhoto] = useState<PhotoItem | null>(null)
-
-  // Zoom & Pan Status für die Großansicht
-  const [scale, setScale] = useState(1)
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const isDragging = useRef(false)
-  const startPos = useRef({ x: 0, y: 0 })
 
   // Zustand für das Umbenennen von Ordnern
   const [editingFolder, setEditingFolder] = useState<string | null>(null)
@@ -45,23 +38,13 @@ export default function Archive() {
     }
   }, [])
 
-  // Zoom zurücksetzen, wenn ein neues Foto geöffnet wird
-  const openPhotoModal = (photo: PhotoItem) => {
-    setScale(1)
-    setPosition({ x: 0, y: 0 })
-    setActivePhoto(photo)
-  }
-
-  // Alle Ordner laden (Standard + custom Ordner)
   const customCategories = photos.map(p => p.category)
   const allFolders = Array.from(new Set([...DEFAULT_FOLDER_NAMES, ...customCategories]))
 
-  // Hilfsfunktion: Gibt das Icon für den Ordner zurück
   const getFolderIcon = (folderName: string) => {
     return DEFAULT_FOLDERS[folderName] || '📂'
   }
 
-  // Ordner umbenennen & alle zugehörigen Fotos aktualisieren
   const handleRenameFolder = (oldFolder: string) => {
     const trimmedName = newFolderName.trim()
     if (!trimmedName || trimmedName === oldFolder) {
@@ -82,7 +65,6 @@ export default function Archive() {
     setNewFolderName('')
   }
 
-  // Foto in den Papierkorb verschieben
   const handleDelete = (photoToDelete: PhotoItem) => {
     const updatedArchive = photos.filter(item => item.id !== photoToDelete.id)
     setPhotos(updatedArchive)
@@ -98,13 +80,12 @@ export default function Archive() {
 
     const updatedTrash = [...currentTrash, photoForTrash]
     localStorage.setItem('mhx_trash_photos', JSON.stringify(updatedTrash))
-
+    
     if (activePhoto?.id === photoToDelete.id) {
       setActivePhoto(null)
     }
   }
 
-  // Favorit umschalten
   const toggleFavorite = (id: string) => {
     const updated = photos.map(photo => {
       if (photo.id === id) {
@@ -114,86 +95,30 @@ export default function Archive() {
     })
     setPhotos(updated)
     localStorage.setItem('mhx_archive_photos', JSON.stringify(updated))
-
-    if (activePhoto?.id === id) {
-      setActivePhoto(prev => prev ? { ...prev, favorite: !prev.favorite } : null)
+    
+    if (activePhoto && activePhoto.id === id) {
+      setActivePhoto({ ...activePhoto, favorite: !activePhoto.favorite })
     }
   }
 
-  // Foto auf Handy sichern
-  const handleDownload = async (photoUrl: string) => {
-    try {
-      const response = await fetch(photoUrl)
-      const blob = await response.blob()
-      
-      if (navigator.share && navigator.canShare) {
-        const file = new File([blob], `mhx-rezept-${Date.now()}.jpg`, { type: blob.type })
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'MHX-Kitchen Rezept',
-          })
-          return
-        }
-      }
-
-      const blobUrl = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = blobUrl
-      link.download = `mhx-rezept-${Date.now()}.jpg`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(blobUrl)
-    } catch (e) {
-      window.open(photoUrl, '_blank')
-    }
+  const handleDownload = (photoUrl: string) => {
+    const link = document.createElement('a')
+    link.href = photoUrl
+    link.download = `mhx-rezept-${Date.now()}.jpg`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
-  // Foto via WhatsApp teilen
   const handleWhatsAppShare = (photoUrl: string) => {
     const text = encodeURIComponent(`Schau dir dieses Rezept an: ${photoUrl}`)
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank')
   }
 
-  // Anzahl Fotos pro Ordner berechnen
   const getPhotoCount = (folderName: string) => {
     return photos.filter(p => p.category === folderName).length
   }
 
-  // Zoom-Logik
-  const handleDoubleClick = () => {
-    if (scale > 1) {
-      setScale(1)
-      setPosition({ x: 0, y: 0 })
-    } else {
-      setScale(2.5)
-    }
-  }
-
-  // Touch & Drag Handling fürs Verschieben
-  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-    isDragging.current = true
-    startPos.current = { x: clientX - position.x, y: clientY - position.y }
-  }
-
-  const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isDragging.current || scale === 1) return
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-    setPosition({
-      x: clientX - startPos.current.x,
-      y: clientY - startPos.current.y
-    })
-  }
-
-  const handleTouchEnd = () => {
-    isDragging.current = false
-  }
-
-  // Fotos des aktuell geöffneten Ordners
   const folderPhotos = selectedFolder 
     ? photos.filter(p => p.category === selectedFolder)
     : []
@@ -219,7 +144,7 @@ export default function Archive() {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* ANSICHT 1: Ordner-Kacheln mit Icons nebeneinander */}
+      {/* ANSICHT 1: Ordner-Kacheln */}
       {!selectedFolder && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
           {allFolders.map(folderName => {
@@ -315,17 +240,17 @@ export default function Archive() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
               {folderPhotos.map(photo => (
                 <div key={photo.id} style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
+                  {/* Klick aufs Foto öffnet direkt das große Overlay */}
                   <img 
                     src={photo.url} 
                     alt={photo.category} 
-                    onClick={() => openPhotoModal(photo)}
+                    onClick={() => setActivePhoto(photo)}
                     style={{ width: '100%', height: '140px', objectFit: 'cover', cursor: 'pointer' }} 
                   />
                   
                   <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
                     <button
                       onClick={() => toggleFavorite(photo.id)}
-                      title="Favorit"
                       style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px', color: photo.favorite ? '#f59e0b' : '#64748b' }}
                     >
                       {photo.favorite ? '⭐' : '☆'}
@@ -334,20 +259,18 @@ export default function Archive() {
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                       <button
                         onClick={() => handleWhatsAppShare(photo.url)}
-                        title="Per WhatsApp teilen"
-                        style={{ backgroundColor: '#25d366', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Teilen"
+                        style={{ backgroundColor: '#25d366', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
                       >
                         💬
                       </button>
-
                       <button
                         onClick={() => handleDownload(photo.url)}
-                        title="Auf Handy sichern"
-                        style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Sichern"
+                        style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
                       >
                         💾
                       </button>
-
                       <button
                         onClick={() => handleDelete(photo)}
                         title="Löschen"
@@ -364,10 +287,9 @@ export default function Archive() {
         </div>
       )}
 
-      {/* MODAL / GROSSANSICHT MIT ZOOM */}
+      {/* VOLLBILD OVERLAY (Direkt maximal groß beim Öffnen) */}
       {activePhoto && (
         <div 
-          onClick={() => setActivePhoto(null)}
           style={{
             position: 'fixed',
             top: 0,
@@ -375,101 +297,89 @@ export default function Archive() {
             right: 0,
             bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.95)',
-            zIndex: 9999,
+            zIndex: 1000,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '16px',
-            touchAction: 'none'
+            padding: '20px 16px',
+            boxSizing: 'border-box'
           }}
         >
-          {/* Schließen Button */}
-          <button 
-            onClick={() => setActivePhoto(null)}
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              backgroundColor: '#334155',
-              color: 'white',
-              border: 'none',
-              borderRadius: '50%',
-              width: '40px',
-              height: '40px',
-              fontSize: '20px',
-              cursor: 'pointer',
-              zIndex: 10000
-            }}
-          >
-            ✕
-          </button>
+          {/* Schließen Button oben rechts */}
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+            <button 
+              onClick={() => setActivePhoto(null)}
+              style={{
+                backgroundColor: '#334155',
+                color: 'white',
+                border: 'none',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                fontSize: '20px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              ✕
+            </button>
+          </div>
 
-          {/* Bildbereich mit Zoom & Pan */}
-          <div 
-            onClick={(e) => e.stopPropagation()} 
-            onDoubleClick={handleDoubleClick}
-            onMouseDown={handleTouchStart}
-            onMouseMove={handleTouchMove}
-            onMouseUp={handleTouchEnd}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            style={{ 
-              maxWidth: '100%', 
-              maxHeight: '75vh', 
-              overflow: 'hidden',
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              cursor: scale > 1 ? 'grab' : 'zoom-in'
-            }}
-          >
+          {/* Direkt maximal sichtbares Bild */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '10px 0' }}>
             <img 
               src={activePhoto.url} 
               alt="Großansicht" 
               style={{ 
                 maxWidth: '100%', 
-                maxHeight: '70vh', 
-                objectFit: 'contain', 
-                borderRadius: '12px', 
-                transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
-                transition: isDragging.current ? 'none' : 'transform 0.2s ease',
-                userSelect: 'none'
+                maxHeight: '75vh', 
+                objectFit: 'contain',
+                borderRadius: '12px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
               }} 
             />
           </div>
 
-          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '8px', zIndex: 10000 }}>
-            Tipp: Doppelklick zum Zoomen & Wischen zum Verschieben
-          </div>
-
-          {/* Aktionsleiste */}
-          <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: '12px', marginTop: '12px', backgroundColor: '#1e293b', padding: '10px 20px', borderRadius: '12px', border: '1px solid #334155', zIndex: 10000 }}>
+          {/* Aktionsleiste unten */}
+          <div style={{
+            backgroundColor: '#1e293b',
+            border: '1px solid #334155',
+            borderRadius: '16px',
+            padding: '12px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            width: '100%',
+            maxWidth: '400px',
+            justifyContent: 'space-around'
+          }}>
             <button
               onClick={() => toggleFavorite(activePhoto.id)}
-              style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: activePhoto.favorite ? '#f59e0b' : '#64748b' }}
+              style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: activePhoto.favorite ? '#f59e0b' : '#64748b' }}
             >
               {activePhoto.favorite ? '⭐' : '☆'}
             </button>
 
             <button
               onClick={() => handleWhatsAppShare(activePhoto.url)}
-              style={{ backgroundColor: '#25d366', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ backgroundColor: '#25d366', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               💬 Teilen
             </button>
 
             <button
               onClick={() => handleDownload(activePhoto.url)}
-              style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               💾 Sichern
             </button>
 
             <button
               onClick={() => handleDelete(activePhoto)}
-              style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '16px', cursor: 'pointer' }}
             >
               🗑️
             </button>
