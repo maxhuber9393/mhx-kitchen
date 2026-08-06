@@ -93,7 +93,7 @@ export default function Archive() {
 
   const handleToggleFavorite = async (e: React.MouseEvent, photo: Photo) => {
     e.stopPropagation()
-    const currentFav = photo.favorite === true || photo.favorite === 'true' || photo.favorite === 1
+    const currentFav = photo.favorite === true || photo.favorite === 'true'
     const nextState = !currentFav
 
     setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, favorite: nextState } : p))
@@ -156,7 +156,6 @@ export default function Archive() {
   return (
     <div style={{ padding: '24px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         {activeFolder ? (
           <button onClick={() => setActiveFolder(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '15px', cursor: 'pointer', fontWeight: '500' }}>
@@ -171,7 +170,6 @@ export default function Archive() {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* Ordner-Übersicht */}
       {!activeFolder ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
           {allFolderNames.map(folderName => {
@@ -206,14 +204,13 @@ export default function Archive() {
           })}
         </div>
       ) : (
-        /* Fotos im Ordner im exakten Look */
         <div>
           {folderPhotos.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Keine Fotos in diesem Ordner.</div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px' }}>
               {folderPhotos.map(photo => {
-                const isFav = photo.favorite === true || photo.favorite === 'true' || photo.favorite === 1
+                const isFav = photo.favorite === true || photo.favorite === 'true'
                 return (
                   <div 
                     key={photo.id} 
@@ -227,14 +224,12 @@ export default function Archive() {
                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)'
                     }}
                   >
-                    {/* Bildbereich mit Stern links & Mülleimer rechts */}
                     <div 
                       onClick={() => setSelectedPhoto(photo)} 
                       style={{ position: 'relative', cursor: 'pointer', width: '100%', height: '160px', backgroundColor: '#0f172a' }}
                     >
                       <img src={photo.url} alt={photo.title || 'Rezept'} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                       
-                      {/* Stern-Button oben links */}
                       <button
                         onClick={(e) => handleToggleFavorite(e, photo)}
                         style={{
@@ -254,12 +249,10 @@ export default function Archive() {
                           fontSize: '15px',
                           cursor: 'pointer'
                         }}
-                        title="Als Favorit markieren"
                       >
                         {isFav ? '⭐' : '☆'}
                       </button>
 
-                      {/* Papierkorb-Button oben rechts */}
                       <button
                         onClick={(e) => handleMoveToTrash(e, photo)}
                         disabled={deleting}
@@ -280,13 +273,11 @@ export default function Archive() {
                           fontSize: '13px',
                           cursor: 'pointer'
                         }}
-                        title="In Papierkorb"
                       >
                         🗑️
                       </button>
                     </div>
 
-                    {/* Kursiver Textbereich unten drunter */}
                     <div style={{ padding: '10px 8px', backgroundColor: '#1e293b', borderTop: '1px solid #334155', textAlign: 'center' }}>
                       {editingPhotoId === photo.id ? (
                         <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
@@ -356,7 +347,6 @@ export default function Archive() {
         </div>
       )}
 
-      {/* Lightbox Modal */}
       {selectedPhoto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.95)', zIndex: 1000, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -367,9 +357,9 @@ export default function Archive() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button 
                 onClick={(e) => handleToggleFavorite(e, selectedPhoto)}
-                style={{ backgroundColor: '#1e293b', color: (selectedPhoto.favorite === true || selectedPhoto.favorite === 'true' || selectedPhoto.favorite === 1) ? '#eab308' : '#94a3b8', border: '1px solid #334155', padding: '8px 14px', borderRadius: '20px', fontSize: '15px', cursor: 'pointer' }}
+                style={{ backgroundColor: '#1e293b', color: (selectedPhoto.favorite === true || selectedPhoto.favorite === 'true') ? '#eab308' : '#94a3b8', border: '1px solid #334155', padding: '8px 14px', borderRadius: '20px', fontSize: '15px', cursor: 'pointer' }}
               >
-                {(selectedPhoto.favorite === true || selectedPhoto.favorite === 'true' || selectedPhoto.favorite === 1) ? '⭐ Favorit' : '☆ Favorit'}
+                {(selectedPhoto.favorite === true || selectedPhoto.favorite === 'true') ? '⭐ Favorit' : '☆ Favorit'}
               </button>
 
               <button 
