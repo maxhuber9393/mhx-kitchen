@@ -2,24 +2,34 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 
-const DEFAULT_FOLDERS = ['Hauptspeisen', 'Desserts', 'Vorspeisen', 'Snacks', 'Getränke', 'Sonstiges']
+const DEFAULT_FOLDERS = [
+  { name: 'Hauptspeisen', icon: '🍲' },
+  { name: 'Desserts', icon: '🍰' },
+  { name: 'Vorspeisen', icon: '🥗' },
+  { name: 'Snacks', icon: '🍿' },
+  { name: 'Getränke', icon: '🍹' },
+  { name: 'Sonstiges', icon: '📦' }
+]
 
-export default function Scan() {
+const EMOJI_OPTIONS = ['🍕', '🍔', '🌮', '🥩', '🍝', '🍜', '🍲', '🥗', '🍿', '🍰', '🧁', '🍦', '🍹', '☕', '🍞', '🥞', '🍣', '🥑', '📦', '📁', '🔥', '🍷']
+
+export default function Upload() {
   const navigate = useNavigate()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [folders, setFolders] = useState<string[]>(DEFAULT_FOLDERS)
+  const [folders, setFolders] = useState<string[]>(DEFAULT_FOLDERS.map(f => f.name))
   const [selectedFolder, setSelectedFolder] = useState<string>('Hauptspeisen')
   const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false)
   const [newFolderName, setNewFolderName] = useState<string>('')
+  const [selectedIcon, setSelectedIcon] = useState<string>('📁')
   const [uploading, setUploading] = useState<boolean>(false)
 
   useEffect(() => {
     const fetchFolders = async () => {
       const { data } = await supabase.from('photos').select('category')
       if (data) {
-        const categories = data.map((p: any) => p.category)
-        const allUnique = Array.from(new Set([...DEFAULT_FOLDERS, ...categories]))
+        const categories = data.map((p: any) => p.category).filter(Boolean)
+        const allUnique = Array.from(new Set([...DEFAULT_FOLDERS.map(f => f.name), ...categories]))
         setFolders(allUnique)
       }
     }
@@ -55,13 +65,16 @@ export default function Scan() {
         .from('recipes')
         .getPublicUrl(fileName)
 
+      const publicUrl = urlData.publicUrl
+
       const { error: dbError } = await supabase
         .from('photos')
         .insert([
           {
             id: Date.now().toString(),
-            url: urlData.publicUrl,
+            url: publicUrl,
             category: targetCategory,
+            icon: isCreatingNew ? selectedIcon : null,
             favorite: false
           }
         ])
@@ -96,7 +109,7 @@ export default function Scan() {
           ) : (
             <label style={{ cursor: 'pointer', display: 'block' }}>
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>📷</div>
-              <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px' }}>Foto knipsen oder auswählen</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '4px' }}>Foto auswählen</div>
               <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
             </label>
           )}
@@ -104,20 +117,60 @@ export default function Scan() {
 
         <div>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: '#94a3b8' }}>Ziel-Ordner wählen:</label>
-          <select value={isCreatingNew ? 'NEW_FOLDER' : selectedFolder} onChange={(e) => {
-            if (e.target.value === 'NEW_FOLDER') { setIsCreatingNew(true) } else { setIsCreatingNew(false); setSelectedFolder(e.target.value) }
-          }} style={{ width: '100%', backgroundColor: '#1e293b', color: 'white', border: '1px solid #334155', padding: '12px', borderRadius: '8px', fontSize: '16px' }}>
+          <select 
+            value={isCreatingNew ? 'NEW_FOLDER' : selectedFolder} 
+            onChange={(e) => {
+              if (e.target.value === 'NEW_FOLDER') { 
+                setIsCreatingNew(true) 
+              } else { 
+                setIsCreatingNew(false)
+                setSelectedFolder(e.target.value) 
+              }
+            }} 
+            style={{ width: '100%', backgroundColor: '#1e293b', color: 'white', border: '1px solid #334155', padding: '12px', borderRadius: '8px', fontSize: '16px' }}
+          >
             {folders.map(f => <option key={f} value={f}>{f}</option>)}
             <option value="NEW_FOLDER">➕ Neuen Ordner erstellen...</option>
           </select>
 
+          {/* Bereich für Emoji-Auswahl bei neuem Ordner */}
           {isCreatingNew && (
-            <input type="text" placeholder="Name des neuen Ordners..." value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} style={{ width: '100%', backgroundColor: '#0f172a', color: 'white', border: '1px solid #3b82f6', padding: '12px', borderRadius: '8px', marginTop: '12px', boxSizing: 'border-box' }} />
+            <div style={{ marginTop: '16px', backgroundColor: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: '#94a3b8' }}>Name des neuen Ordners:</label>
+              <input 
+                type="text" 
+                placeholder="z. B. Grillen" 
+                value={newFolderName} 
+                onChange={(e) => setNewFolderName(e.target.value)} 
+                style={{ width: '100%', backgroundColor: '#0f172a', color: 'white', border: '1px solid #334155', padding: '10px', borderRadius: '8px', boxSizing: 'border-box', marginBottom: '16px' }} 
+              />
+
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: '#94a3b8' }}>Ordner-Symbol wählen:</label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {EMOJI_OPTIONS.map(emoji => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setSelectedIcon(emoji)}
+                    style={{
+                      fontSize: '22px',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: selectedIcon === emoji ? '2px solid #3b82f6' : '1px solid #334155',
+                      backgroundColor: selectedIcon === emoji ? '#1e3a8a' : '#0f172a',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
         <button onClick={handleSave} disabled={!selectedFile || uploading} style={{ backgroundColor: selectedFile ? '#3b82f6' : '#334155', color: 'white', border: 'none', padding: '16px', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold', cursor: selectedFile ? 'pointer' : 'not-allowed' }}>
-          {uploading ? '⏳ Lädt in die Cloud hoch...' : '💾 Im Live-Archiv speichern'}
+          {uploading ? '⏳ Lädt hoch...' : '💾 Im Live-Archiv speichern'}
         </button>
       </div>
     </div>
