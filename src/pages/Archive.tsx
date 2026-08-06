@@ -28,7 +28,6 @@ export default function Archive() {
       .select('*')
 
     if (!error && data) {
-      // Falls eine Kategorie leer/null ist, vergeben wir den Standard-Wert "Unbenannt"
       const cleanedData = data.map(p => ({
         ...p,
         category: (p.category && p.category.trim() !== '') ? p.category : 'Unbenannt'
@@ -56,7 +55,6 @@ export default function Archive() {
     }
   }, [])
 
-  // Liste aller Ordner (Standard-Ordner + vorhandene Kategorien aus der DB)
   const allFolderNames = Array.from(
     new Set([...Object.keys(FOLDER_CONFIG), ...photos.map(p => p.category)])
   )
@@ -136,11 +134,17 @@ export default function Archive() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
               {folderPhotos.map(photo => (
                 <div key={photo.id} style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
-                  <img 
-                    src={photo.url} 
-                    alt={photo.category} 
-                    style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }} 
-                  />
+                  {photo.url ? (
+                    <img 
+                      src={photo.url} 
+                      alt="Rezept" 
+                      style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }} 
+                    />
+                  ) : (
+                    <div style={{ height: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                      Kein Bild
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
