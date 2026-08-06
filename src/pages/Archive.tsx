@@ -76,6 +76,24 @@ export default function Archive() {
     setIsZoomed(false)
   }
 
+  const handleShare = async (photo: Photo) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Rezeptbild',
+          text: `Schau dir dieses Rezept aus ${photo.category} an!`,
+          url: photo.url,
+        })
+      } catch (err) {
+        console.error('Fehler beim Teilen:', err)
+      }
+    } else {
+      // Fallback: WhatsApp direkt öffnen
+      const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent('Schau dir dieses Rezept an: ' + photo.url)}`
+      window.open(whatsappUrl, '_blank')
+    }
+  }
+
   return (
     <div style={{ padding: '24px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
       
@@ -159,7 +177,7 @@ export default function Archive() {
         </div>
       )}
 
-      {/* Vollbild Lightbox Modal mit Zoom */}
+      {/* Vollbild Lightbox Modal mit Zoom & Teilen-Button */}
       {selectedPhoto && (
         <div 
           style={{
@@ -179,7 +197,7 @@ export default function Archive() {
           {/* Lightbox Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '14px', color: '#94a3b8' }}>
-              {isZoomed ? '🔍 Gezoomt (Klick zum Verkleinern)' : '🔍 Klick aufs Bild zum Zoomen'}
+              {isZoomed ? '🔍 Gezoomt' : '🔍 Klick zum Zoomen'}
             </span>
             <button 
               onClick={handleCloseLightbox}
@@ -215,7 +233,7 @@ export default function Archive() {
               onClick={() => setIsZoomed(!isZoomed)}
               style={{
                 maxWidth: isZoomed ? '200%' : '100%',
-                maxHeight: isZoomed ? 'none' : '80vh',
+                maxHeight: isZoomed ? 'none' : '75vh',
                 objectFit: 'contain',
                 transition: 'transform 0.2s ease-in-out',
                 cursor: isZoomed ? 'zoom-out' : 'zoom-in',
@@ -224,9 +242,29 @@ export default function Archive() {
             />
           </div>
 
-          {/* Lightbox Footer */}
-          <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-            Ordner: {selectedPhoto.category}
+          {/* Lightbox Footer mit Teilen-Button */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            <button
+              onClick={() => handleShare(selectedPhoto)}
+              style={{
+                backgroundColor: '#22c55e',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '24px',
+                fontSize: '15px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              📲 Per WhatsApp / Teilen
+            </button>
+            <span style={{ color: '#94a3b8', fontSize: '13px' }}>
+              Ordner: {selectedPhoto.category}
+            </span>
           </div>
         </div>
       )}
