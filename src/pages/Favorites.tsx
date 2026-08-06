@@ -7,7 +7,7 @@ interface Photo {
   url: string
   category: string
   title?: string
-  favorite: boolean | string | number
+  favorite: any // <-- Hier auch "any" für die Favoriten-Seite
   deleted?: boolean
 }
 
@@ -23,7 +23,7 @@ export default function Favorites() {
 
     if (!error && data) {
       const favoritedPhotos = data.filter(p => 
-        (p.favorite === true || p.favorite === 'true' || p.favorite === 1) && 
+        (p.favorite === true || p.favorite === 'true' || p.favorite === 1 || p.favorite === '1') && 
         !p.deleted
       )
       setPhotos(favoritedPhotos)
