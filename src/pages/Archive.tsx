@@ -8,6 +8,7 @@ interface Photo {
   category: string
   icon?: string
   favorite: boolean
+  deleted?: boolean
 }
 
 const DEFAULT_ICONS: { [key: string]: string } = {
@@ -24,9 +25,15 @@ export default function Archive() {
   const [activeFolder, setActiveFolder] = useState<string | null>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [isZoomed, setIsZoomed] = useState<boolean>(false)
+  const [deleting, setDeleting] = useState<boolean>(false)
 
   const fetchPhotos = async () => {
-    const { data, error } = await supabase.from('photos').select('*')
+    // Nur Fotos laden, die NICHT gelöscht sind
+    const { data, error } = await supabase
+      .from('photos')
+      .select('*')
+      .or('deleted.eq.false,deleted.is.null')
+
     if (!error && data) {
       const cleanedData = data.map(p => ({
         ...p,
@@ -72,8 +79,38 @@ export default function Archive() {
     }
   }
 
+  // Foto direkt in den Papierkorb schieben
+  const handleMoveToTrash = async (e: React.MouseEvent, photo: Photo) => {
+    e.stopPropagation() // Verhindert, dass sich das Foto als Vollbild öffnet
+    const confirmed = window.confirm('Foto in den Papierkorb verschieben?')
+    if (!confirmed) return
+
+    setDeleting(true)
+    try {
+      const { error: dbError } = await supabase
+        .from('photos')
+        .update({ 
+          deleted: true, 
+          deleted_at: new Date().toISOString() 
+        })
+        .eq('id', photo.id)
+
+      if (dbError) throw dbError
+
+      setSelectedPhoto(null)
+      setIsZoomed(false)
+      fetchPhotos()
+    } catch (err: any) {
+      alert('Fehler beim Verschieben: ' + err.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div style={{ padding: '24px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
+      
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         {activeFolder ? (
           <button onClick={() => setActiveFolder(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '16px', cursor: 'pointer' }}>
@@ -88,6 +125,7 @@ export default function Archive() {
         <div style={{ width: '60px' }}></div>
       </div>
 
+      {/* Ordner-Raster */}
       {!activeFolder ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
           {allFolderNames.map(folderName => {
@@ -121,14 +159,52 @@ export default function Archive() {
           })}
         </div>
       ) : (
+        /* Fotos im Ordner */
         <div>
           {folderPhotos.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Keine Fotos in diesem Ordner.</div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
               {folderPhotos.map(photo => (
-                <div key={photo.id} onClick={() => setSelectedPhoto(photo)} style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155', cursor: 'pointer' }}>
+                <div 
+                  key={photo.id} 
+                  onClick={() => setSelectedPhoto(photo)} 
+                  style={{ 
+                    position: 'relative',
+                    backgroundColor: '#1e293b', 
+                    borderRadius: '12px', 
+                    overflow: 'hidden', 
+                    border: '1px solid #334155', 
+                    cursor: 'pointer' 
+                  }}
+                >
                   <img src={photo.url} alt="Rezept" style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }} />
+                  
+                  {/* Papierkorb-Button direkt auf der Karte (oben rechts) */}
+                  <button
+                    onClick={(e) => handleMoveToTrash(e, photo)}
+                    disabled={deleting}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                    title="In Papierkorb"
+                  >
+                    🗑️
+                  </button>
                 </div>
               ))}
             </div>
@@ -136,17 +212,36 @@ export default function Archive() {
         </div>
       )}
 
+      {/* Vollbild-Modal */}
       {selectedPhoto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.95)', zIndex: 1000, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '14px', color: '#94a3b8' }}>{isZoomed ? '🔍 Gezoomt' : '🔍 Klick zum Zoomen'}</span>
-            <button onClick={() => { setSelectedPhoto(null); setIsZoomed(false); }} style={{ backgroundColor: '#334155', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '20px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>✕ Schließen</button>
+            
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                onClick={(e) => handleMoveToTrash(e, selectedPhoto)} 
+                disabled={deleting}
+                style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '20px', fontSize: '16px', cursor: 'pointer' }}
+                title="In Papierkorb verschieben"
+              >
+                🗑️
+              </button>
+
+              <button onClick={() => { setSelectedPhoto(null); setIsZoomed(false); }} style={{ backgroundColor: '#334155', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '20px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>
+                ✕ Schließen
+              </button>
+            </div>
           </div>
+
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', margin: '20px 0' }}>
             <img src={selectedPhoto.url} alt="Vollbild" onClick={() => setIsZoomed(!isZoomed)} style={{ maxWidth: isZoomed ? '200%' : '100%', maxHeight: isZoomed ? 'none' : '75vh', objectFit: 'contain', cursor: isZoomed ? 'zoom-out' : 'zoom-in', borderRadius: '8px' }} />
           </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => handleShare(selectedPhoto)} style={{ backgroundColor: '#22c55e', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '24px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>📲 Per WhatsApp / Teilen</button>
+            <button onClick={() => handleShare(selectedPhoto)} style={{ backgroundColor: '#22c55e', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '24px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>
+              📲 Per WhatsApp / Teilen
+            </button>
           </div>
         </div>
       )}
