@@ -7,7 +7,7 @@ interface Photo {
   url: string
   category: string
   title?: string
-  favorite: boolean | string
+  favorite: boolean | string | number
   deleted?: boolean
 }
 
@@ -22,7 +22,6 @@ export default function Favorites() {
       .select('*')
 
     if (!error && data) {
-      // Filtert flexibel auf alle Favoriten (egal ob true oder 'true')
       const favoritedPhotos = data.filter(p => 
         (p.favorite === true || p.favorite === 'true' || p.favorite === 1) && 
         !p.deleted
@@ -74,7 +73,6 @@ export default function Favorites() {
 
   return (
     <div style={{ padding: '24px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '15px', fontWeight: '500' }}>← Startseite</Link>
         <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -110,7 +108,6 @@ export default function Favorites() {
               >
                 <img src={photo.url} alt={photo.title || 'Favorit'} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 
-                {/* Stern-Button zum Entfernen */}
                 <button
                   onClick={(e) => handleRemoveFavorite(e, photo)}
                   style={{
@@ -130,13 +127,11 @@ export default function Favorites() {
                     fontSize: '15px',
                     cursor: 'pointer'
                   }}
-                  title="Aus Favoriten entfernen"
                 >
                   ⭐
                 </button>
               </div>
 
-              {/* Kursiver Rezeptname unten drunter */}
               <div style={{ padding: '10px 8px', backgroundColor: '#1e293b', borderTop: '1px solid #334155', textAlign: 'center' }}>
                 <span style={{ 
                   fontSize: '12px', 
@@ -155,7 +150,6 @@ export default function Favorites() {
         </div>
       )}
 
-      {/* Lightbox Modal */}
       {selectedPhoto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.95)', zIndex: 1000, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
