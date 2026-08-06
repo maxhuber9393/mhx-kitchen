@@ -28,7 +28,12 @@ export default function Archive() {
       .select('*')
 
     if (!error && data) {
-      setPhotos(data)
+      // Falls eine Kategorie leer/null ist, vergeben wir den Standard-Wert "Unbenannt"
+      const cleanedData = data.map(p => ({
+        ...p,
+        category: (p.category && p.category.trim() !== '') ? p.category : 'Unbenannt'
+      }))
+      setPhotos(cleanedData)
     }
   }
 
@@ -51,7 +56,7 @@ export default function Archive() {
     }
   }, [])
 
-  // Dynamische Liste aller Ordner aus den Standard-Ordnern + vorhandenen Fotos
+  // Liste aller Ordner (Standard-Ordner + vorhandene Kategorien aus der DB)
   const allFolderNames = Array.from(
     new Set([...Object.keys(FOLDER_CONFIG), ...photos.map(p => p.category)])
   )
@@ -87,7 +92,7 @@ export default function Archive() {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* Hauptansicht: Ordner-Kacheln */}
+      {/* Ordner-Raster */}
       {!activeFolder ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
           {allFolderNames.map(folderName => {
@@ -121,7 +126,7 @@ export default function Archive() {
           })}
         </div>
       ) : (
-        /* Unteransicht: Fotos im geöffneten Ordner */
+        /* Foto-Ansicht im Ordner */
         <div>
           {folderPhotos.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>
