@@ -1,392 +1,93 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { supabase } from '../supabase'
 
-interface PhotoItem {
+interface Photo {
   id: string
   url: string
   category: string
-  favorite?: boolean
-  deletedAt?: string
+  favorite: boolean
 }
-
-const DEFAULT_FOLDERS: { [key: string]: string } = {
-  'Hauptspeisen': '🍲',
-  'Desserts': '🍰',
-  'Vorspeisen': '🥗',
-  'Snacks': '🍿',
-  'Getränke': '🍹',
-  'Sonstiges': '📦'
-}
-
-const DEFAULT_FOLDER_NAMES = Object.keys(DEFAULT_FOLDERS)
 
 export default function Archive() {
-  const [photos, setPhotos] = useState<PhotoItem[]>([])
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
-  
-  // Zustand für Großansicht (Lightbox)
-  const [activePhoto, setActivePhoto] = useState<PhotoItem | null>(null)
+  const [photos, setPhotos] = useState<Photo[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string>('Alle')
 
-  // Zustand für das Umbenennen von Ordnern
-  const [editingFolder, setEditingFolder] = useState<string | null>(null)
-  const [newFolderName, setNewFolderName] = useState<string>('')
+  // Fotos aus Supabase laden
+  const fetchPhotos = async () => {
+    const { data, error } = await supabase
+      .from('photos')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (data && !error) {
+      setPhotos(data)
+    }
+  }
 
   useEffect(() => {
-    const saved = localStorage.getItem('mhx_archive_photos')
-    if (saved) {
-      setPhotos(JSON.parse(saved))
+    fetchPhotos()
+
+    // ⚡ REALTIME LIVE-SYNC: Reagiert sofort, wenn deine Freundin ein Foto hochlädt
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'photos' },
+        () => {
+          fetchPhotos()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
   }, [])
 
-  const customCategories = photos.map(p => p.category)
-  const allFolders = Array.from(new Set([...DEFAULT_FOLDER_NAMES, ...customCategories]))
-
-  const getFolderIcon = (folderName: string) => {
-    return DEFAULT_FOLDERS[folderName] || '📂'
-  }
-
-  const handleRenameFolder = (oldFolder: string) => {
-    const trimmedName = newFolderName.trim()
-    if (!trimmedName || trimmedName === oldFolder) {
-      setEditingFolder(null)
-      return
-    }
-
-    const updatedPhotos = photos.map(photo => {
-      if (photo.category === oldFolder) {
-        return { ...photo, category: trimmedName }
-      }
-      return photo
-    })
-
-    setPhotos(updatedPhotos)
-    localStorage.setItem('mhx_archive_photos', JSON.stringify(updatedPhotos))
-    setEditingFolder(null)
-    setNewFolderName('')
-  }
-
-  const handleDelete = (photoToDelete: PhotoItem) => {
-    const updatedArchive = photos.filter(item => item.id !== photoToDelete.id)
-    setPhotos(updatedArchive)
-    localStorage.setItem('mhx_archive_photos', JSON.stringify(updatedArchive))
-
-    const savedTrash = localStorage.getItem('mhx_trash_photos')
-    const currentTrash: PhotoItem[] = savedTrash ? JSON.parse(savedTrash) : []
-
-    const photoForTrash = {
-      ...photoToDelete,
-      deletedAt: new Date().toISOString()
-    }
-
-    const updatedTrash = [...currentTrash, photoForTrash]
-    localStorage.setItem('mhx_trash_photos', JSON.stringify(updatedTrash))
-    
-    if (activePhoto?.id === photoToDelete.id) {
-      setActivePhoto(null)
-    }
-  }
-
-  const toggleFavorite = (id: string) => {
-    const updated = photos.map(photo => {
-      if (photo.id === id) {
-        return { ...photo, favorite: !photo.favorite }
-      }
-      return photo
-    })
-    setPhotos(updated)
-    localStorage.setItem('mhx_archive_photos', JSON.stringify(updated))
-    
-    if (activePhoto && activePhoto.id === id) {
-      setActivePhoto({ ...activePhoto, favorite: !activePhoto.favorite })
-    }
-  }
-
-  const handleDownload = (photoUrl: string) => {
-    const link = document.createElement('a')
-    link.href = photoUrl
-    link.download = `mhx-rezept-${Date.now()}.jpg`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
-  const handleWhatsAppShare = (photoUrl: string) => {
-    const text = encodeURIComponent(`Schau dir dieses Rezept an: ${photoUrl}`)
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank')
-  }
-
-  const getPhotoCount = (folderName: string) => {
-    return photos.filter(p => p.category === folderName).length
-  }
-
-  const folderPhotos = selectedFolder 
-    ? photos.filter(p => p.category === selectedFolder)
-    : []
+  const categories = ['Alle', ...Array.from(new Set(photos.map(p => p.category)))]
+  const filteredPhotos = selectedCategory === 'Alle' 
+    ? photos 
+    : photos.filter(p => p.category === selectedCategory)
 
   return (
     <div style={{ padding: '24px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, sans-serif' }}>
-      
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-        {selectedFolder ? (
-          <button 
-            onClick={() => setSelectedFolder(null)}
-            style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            ← Zurück zu Ordnern
-          </button>
-        ) : (
-          <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '16px' }}>← Startseite</Link>
-        )}
-        <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {selectedFolder ? `${getFolderIcon(selectedFolder)} ${selectedFolder}` : '📂 Mein Archiv'}
-        </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none' }}>← Startseite</Link>
+        <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>📁 Rezept-Archiv</h1>
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* ANSICHT 1: Ordner-Kacheln */}
-      {!selectedFolder && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
-          {allFolders.map(folderName => {
-            const isDefaultFolder = DEFAULT_FOLDER_NAMES.includes(folderName)
+      {/* Ordner-Filter */}
+      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '20px' }}>
+        {categories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setSelectedCategory(cat)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '20px',
+              border: 'none',
+              backgroundColor: selectedCategory === cat ? '#3b82f6' : '#1e293b',
+              color: 'white',
+              whiteSpace: 'nowrap',
+              cursor: 'pointer'
+            }}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
 
-            return (
-              <div
-                key={folderName}
-                style={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  position: 'relative'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ fontSize: '28px', cursor: 'pointer' }} onClick={() => setSelectedFolder(folderName)}>
-                    {getFolderIcon(folderName)}
-                  </div>
-                  {!isDefaultFolder && editingFolder !== folderName && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditingFolder(folderName)
-                        setNewFolderName(folderName)
-                      }}
-                      title="Ordner umbenennen"
-                      style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '14px', padding: '2px' }}
-                    >
-                      ✏️
-                    </button>
-                  )}
-                </div>
-
-                {editingFolder === folderName ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-                    <input
-                      type="text"
-                      value={newFolderName}
-                      onChange={(e) => setNewFolderName(e.target.value)}
-                      autoFocus
-                      style={{
-                        backgroundColor: '#0f172a',
-                        color: 'white',
-                        border: '1px solid #3b82f6',
-                        borderRadius: '6px',
-                        padding: '6px',
-                        fontSize: '13px',
-                        width: '100%',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <button
-                        onClick={() => handleRenameFolder(folderName)}
-                        style={{ flex: 1, backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', fontSize: '11px', cursor: 'pointer' }}
-                      >
-                        OK
-                      </button>
-                      <button
-                        onClick={() => setEditingFolder(null)}
-                        style={{ flex: 1, backgroundColor: '#475569', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', fontSize: '11px', cursor: 'pointer' }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div onClick={() => setSelectedFolder(folderName)} style={{ cursor: 'pointer' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#f8fafc', wordBreak: 'break-word' }}>{folderName}</div>
-                    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{getPhotoCount(folderName)} Fotos</div>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* ANSICHT 2: Fotos im geöffneten Ordner */}
-      {selectedFolder && (
-        <div>
-          {folderPhotos.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#64748b', marginTop: '60px' }}>
-              <p style={{ fontSize: '48px', marginBottom: '8px' }}>📷</p>
-              <p>Keine Fotos im Ordner "{selectedFolder}".</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
-              {folderPhotos.map(photo => (
-                <div key={photo.id} style={{ backgroundColor: '#1e293b', borderRadius: '12px', overflow: 'hidden', border: '1px solid #334155' }}>
-                  {/* Klick aufs Foto öffnet direkt das große Overlay */}
-                  <img 
-                    src={photo.url} 
-                    alt={photo.category} 
-                    onClick={() => setActivePhoto(photo)}
-                    style={{ width: '100%', height: '140px', objectFit: 'cover', cursor: 'pointer' }} 
-                  />
-                  
-                  <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
-                    <button
-                      onClick={() => toggleFavorite(photo.id)}
-                      style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px', color: photo.favorite ? '#f59e0b' : '#64748b' }}
-                    >
-                      {photo.favorite ? '⭐' : '☆'}
-                    </button>
-
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                      <button
-                        onClick={() => handleWhatsAppShare(photo.url)}
-                        title="Teilen"
-                        style={{ backgroundColor: '#25d366', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
-                      >
-                        💬
-                      </button>
-                      <button
-                        onClick={() => handleDownload(photo.url)}
-                        title="Sichern"
-                        style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
-                      >
-                        💾
-                      </button>
-                      <button
-                        onClick={() => handleDelete(photo)}
-                        title="Löschen"
-                        style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', height: '28px' }}
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* VOLLBILD OVERLAY (Direkt maximal groß beim Öffnen) */}
-      {activePhoto && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.95)',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '20px 16px',
-            boxSizing: 'border-box'
-          }}
-        >
-          {/* Schließen Button oben rechts */}
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
-            <button 
-              onClick={() => setActivePhoto(null)}
-              style={{
-                backgroundColor: '#334155',
-                color: 'white',
-                border: 'none',
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                fontSize: '20px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              ✕
-            </button>
+      {/* Raster-Anzeige der Bilder */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
+        {filteredPhotos.map(photo => (
+          <div key={photo.id} style={{ backgroundColor: '#1e293b', borderRadius: '8px', overflow: 'hidden' }}>
+            <img src={photo.url} alt="Rezept" style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
+            <div style={{ padding: '8px', fontSize: '12px', color: '#94a3b8' }}>{photo.category}</div>
           </div>
-
-          {/* Direkt maximal sichtbares Bild */}
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '10px 0' }}>
-            <img 
-              src={activePhoto.url} 
-              alt="Großansicht" 
-              style={{ 
-                maxWidth: '100%', 
-                maxHeight: '75vh', 
-                objectFit: 'contain',
-                borderRadius: '12px',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
-              }} 
-            />
-          </div>
-
-          {/* Aktionsleiste unten */}
-          <div style={{
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '16px',
-            padding: '12px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            width: '100%',
-            maxWidth: '400px',
-            justifyContent: 'space-around'
-          }}>
-            <button
-              onClick={() => toggleFavorite(activePhoto.id)}
-              style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: activePhoto.favorite ? '#f59e0b' : '#64748b' }}
-            >
-              {activePhoto.favorite ? '⭐' : '☆'}
-            </button>
-
-            <button
-              onClick={() => handleWhatsAppShare(activePhoto.url)}
-              style={{ backgroundColor: '#25d366', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              💬 Teilen
-            </button>
-
-            <button
-              onClick={() => handleDownload(activePhoto.url)}
-              style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              💾 Sichern
-            </button>
-
-            <button
-              onClick={() => handleDelete(activePhoto)}
-              style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '16px', cursor: 'pointer' }}
-            >
-              🗑️
-            </button>
-          </div>
-        </div>
-      )}
-
+        ))}
+      </div>
     </div>
   )
 }
