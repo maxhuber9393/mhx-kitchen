@@ -205,7 +205,7 @@ export default function Archive() {
           })}
         </div>
       ) : (
-        /* Foto-Grid mit kursivem Rezeptnamen drunter */
+        /* Fotos im Ordner */
         <div>
           {folderPhotos.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Keine Fotos in diesem Ordner.</div>
@@ -220,14 +220,13 @@ export default function Archive() {
                     overflow: 'hidden', 
                     border: '1px solid #334155', 
                     display: 'flex',
-                    flexDirection: 'column',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)'
+                    flexDirection: 'column'
                   }}
                 >
-                  {/* Bildbereich mit Buttons oben */}
+                  {/* Bildbereich */}
                   <div 
                     onClick={() => setSelectedPhoto(photo)} 
-                    style={{ position: 'relative', cursor: 'pointer', height: '160px', backgroundColor: '#0f172a' }}
+                    style={{ position: 'relative', cursor: 'pointer', width: '100%', height: '160px', backgroundColor: '#0f172a' }}
                   >
                     <img src={photo.url} alt={photo.title || 'Rezept'} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     
@@ -283,10 +282,10 @@ export default function Archive() {
                     </button>
                   </div>
 
-                  {/* Kursiver Text drunter */}
-                  <div style={{ padding: '8px 10px', backgroundColor: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '38px' }}>
+                  {/* Textbereich unter dem Bild */}
+                  <div style={{ padding: '10px 8px', backgroundColor: '#1e293b', borderTop: '1px solid #334155', textAlign: 'center' }}>
                     {editingPhotoId === photo.id ? (
-                      <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                      <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
                         <input
                           type="text"
                           value={newTitleInput}
@@ -329,12 +328,11 @@ export default function Archive() {
                           setEditingPhotoId(photo.id)
                           setNewTitleInput(photo.title || '')
                         }}
-                        style={{ width: '100%', textAlign: 'center', cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', width: '100%' }}
                       >
                         <span style={{ 
                           fontSize: '12px', 
                           fontStyle: 'italic', 
-                          fontWeight: '400', 
                           color: photo.title ? '#cbd5e1' : '#64748b', 
                           overflow: 'hidden', 
                           textOverflow: 'ellipsis', 
