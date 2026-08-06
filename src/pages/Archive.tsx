@@ -28,7 +28,6 @@ export default function Archive() {
   const [deleting, setDeleting] = useState<boolean>(false)
 
   const fetchPhotos = async () => {
-    // Nur Fotos laden, die NICHT gelöscht sind
     const { data, error } = await supabase
       .from('photos')
       .select('*')
@@ -67,6 +66,30 @@ export default function Archive() {
 
   const folderPhotos = activeFolder ? photos.filter(p => p.category === activeFolder) : []
 
+  // Stern Umschalten (Live Cloud Updates)
+  const handleToggleFavorite = async (e: React.MouseEvent, photo: Photo) => {
+    e.stopPropagation()
+    const nextState = !photo.favorite
+
+    // Sofortige visuelle Rückmeldung
+    setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, favorite: nextState } : p))
+    if (selectedPhoto && selectedPhoto.id === photo.id) {
+      setSelectedPhoto({ ...selectedPhoto, favorite: nextState })
+    }
+
+    try {
+      const { error } = await supabase
+        .from('photos')
+        .update({ favorite: nextState })
+        .eq('id', photo.id)
+
+      if (error) throw error
+    } catch (err: any) {
+      alert('Fehler beim Aktualisieren: ' + err.message)
+      fetchPhotos()
+    }
+  }
+
   const handleShare = async (photo: Photo) => {
     if (navigator.share) {
       try {
@@ -79,9 +102,8 @@ export default function Archive() {
     }
   }
 
-  // Foto direkt in den Papierkorb schieben
   const handleMoveToTrash = async (e: React.MouseEvent, photo: Photo) => {
-    e.stopPropagation() // Verhindert, dass sich das Foto als Vollbild öffnet
+    e.stopPropagation()
     const confirmed = window.confirm('Foto in den Papierkorb verschieben?')
     if (!confirmed) return
 
@@ -125,7 +147,7 @@ export default function Archive() {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {/* Ordner-Raster */}
+      {/* Ordner Übersicht */}
       {!activeFolder ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
           {allFolderNames.map(folderName => {
@@ -180,7 +202,32 @@ export default function Archive() {
                 >
                   <img src={photo.url} alt="Rezept" style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block' }} />
                   
-                  {/* Papierkorb-Button direkt auf der Karte (oben rechts) */}
+                  {/* FAVORITEN STERN (Oben Links) */}
+                  <button
+                    onClick={(e) => handleToggleFavorite(e, photo)}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      left: '8px',
+                      backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                      color: photo.favorite ? '#eab308' : '#94a3b8',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                    title="Als Favorit markieren"
+                  >
+                    {photo.favorite ? '⭐' : '☆'}
+                  </button>
+
+                  {/* PAPIERKORB (Oben Rechts) */}
                   <button
                     onClick={(e) => handleMoveToTrash(e, photo)}
                     disabled={deleting}
@@ -212,7 +259,7 @@ export default function Archive() {
         </div>
       )}
 
-      {/* Vollbild-Modal */}
+      {/* Vollbild Lightbox */}
       {selectedPhoto && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.95)', zIndex: 1000, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -220,10 +267,16 @@ export default function Archive() {
             
             <div style={{ display: 'flex', gap: '10px' }}>
               <button 
+                onClick={(e) => handleToggleFavorite(e, selectedPhoto)}
+                style={{ backgroundColor: '#1e293b', color: selectedPhoto.favorite ? '#eab308' : '#94a3b8', border: '1px solid #334155', padding: '8px 14px', borderRadius: '20px', fontSize: '16px', cursor: 'pointer' }}
+              >
+                {selectedPhoto.favorite ? '⭐ Favorit' : '☆ Favorit'}
+              </button>
+
+              <button 
                 onClick={(e) => handleMoveToTrash(e, selectedPhoto)} 
                 disabled={deleting}
                 style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '20px', fontSize: '16px', cursor: 'pointer' }}
-                title="In Papierkorb verschieben"
               >
                 🗑️
               </button>
