@@ -8,7 +8,7 @@ interface Photo {
   category: string
   title?: string
   icon?: string
-  favorite: boolean | string
+  favorite: any
   deleted?: boolean
 }
 
@@ -30,6 +30,8 @@ export default function Archive() {
   
   const [editingPhotoId, setEditingPhotoId] = useState<string | null>(null)
   const [newTitleInput, setNewTitleInput] = useState<string>('')
+  
+  const [searchTerm, setSearchTerm] = useState<string>('')
 
   const fetchPhotos = async () => {
     const { data, error } = await supabase
@@ -68,8 +70,6 @@ export default function Archive() {
     return customPhoto?.icon || '📁'
   }
 
-  const folderPhotos = activeFolder ? photos.filter(p => p.category === activeFolder) : []
-
   const handleSaveTitle = async (photo: Photo) => {
     try {
       const trimmedTitle = newTitleInput.trim()
@@ -93,7 +93,7 @@ export default function Archive() {
 
   const handleToggleFavorite = async (e: React.MouseEvent, photo: Photo) => {
     e.stopPropagation()
-    const currentFav = photo.favorite === true || photo.favorite === 'true'
+    const currentFav = photo.favorite === true || photo.favorite === 'true' || photo.favorite === 1 || photo.favorite === '1'
     const nextState = !currentFav
 
     setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, favorite: nextState } : p))
@@ -153,13 +153,29 @@ export default function Archive() {
     }
   }
 
+  // Smarte Such-Logik
+  const isSearching = searchTerm.trim() !== ''
+  let displayedPhotos = activeFolder ? photos.filter(p => p.category === activeFolder) : photos
+
+  if (isSearching) {
+    const lowerSearch = searchTerm.toLowerCase()
+    displayedPhotos = displayedPhotos.filter(p => 
+      p.title?.toLowerCase().includes(lowerSearch) || 
+      (!activeFolder && p.category?.toLowerCase().includes(lowerSearch))
+    )
+  }
+
   return (
     <div style={{ padding: '24px 16px', minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
         {activeFolder ? (
-          <button onClick={() => setActiveFolder(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '15px', cursor: 'pointer', fontWeight: '500' }}>
-            ← Zurück zu Ordnern
+          <button 
+            onClick={() => { setActiveFolder(null); setSearchTerm(''); }} 
+            style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '15px', cursor: 'pointer', fontWeight: '500' }}
+          >
+            ← Zurück
           </button>
         ) : (
           <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none', fontSize: '15px', fontWeight: '500' }}>← Startseite</Link>
@@ -170,14 +186,38 @@ export default function Archive() {
         <div style={{ width: '60px' }}></div>
       </div>
 
-      {!activeFolder ? (
+      {/* Cleane, super einfache Suchleiste im Smartphone-Look */}
+      <div style={{ marginBottom: '24px', position: 'relative' }}>
+        <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px', color: '#64748b' }}>
+          🔍
+        </span>
+        <input
+          type="text"
+          placeholder="Suchen..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            width: '100%',
+            backgroundColor: '#1e293b',
+            color: '#f8fafc',
+            border: 'none',
+            borderRadius: '12px',
+            padding: '12px 16px 12px 40px',
+            fontSize: '15px',
+            outline: 'none'
+          }}
+        />
+      </div>
+
+      {/* Ordner anzeigen, WENN kein Ordner offen ist UND nicht gesucht wird */}
+      {!activeFolder && !isSearching ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
           {allFolderNames.map(folderName => {
             const count = photos.filter(p => p.category === folderName).length
             return (
               <div
                 key={folderName}
-                onClick={() => setActiveFolder(folderName)}
+                onClick={() => { setActiveFolder(folderName); setSearchTerm(''); }}
                 style={{
                   backgroundColor: '#1e293b',
                   borderRadius: '16px',
@@ -204,13 +244,16 @@ export default function Archive() {
           })}
         </div>
       ) : (
+        /* Fotos anzeigen */
         <div>
-          {folderPhotos.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Keine Fotos in diesem Ordner.</div>
+          {displayedPhotos.length === 0 ? (
+            <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>
+              {isSearching ? 'Keine Treffer.' : 'Keine Fotos in diesem Ordner.'}
+            </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '16px' }}>
-              {folderPhotos.map(photo => {
-                const isFav = photo.favorite === true || photo.favorite === 'true'
+              {displayedPhotos.map(photo => {
+                const isFav = photo.favorite === true || photo.favorite === 'true' || photo.favorite === 1 || photo.favorite === '1'
                 return (
                   <div 
                     key={photo.id} 
@@ -285,7 +328,7 @@ export default function Archive() {
                             type="text"
                             value={newTitleInput}
                             onChange={(e) => setNewTitleInput(e.target.value)}
-                            placeholder="Rezeptname hinzufügen..."
+                            placeholder="Name..."
                             autoFocus
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle(photo)}
                             style={{
@@ -357,9 +400,9 @@ export default function Archive() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button 
                 onClick={(e) => handleToggleFavorite(e, selectedPhoto)}
-                style={{ backgroundColor: '#1e293b', color: (selectedPhoto.favorite === true || selectedPhoto.favorite === 'true') ? '#eab308' : '#94a3b8', border: '1px solid #334155', padding: '8px 14px', borderRadius: '20px', fontSize: '15px', cursor: 'pointer' }}
+                style={{ backgroundColor: '#1e293b', color: (selectedPhoto.favorite === true || selectedPhoto.favorite === 'true' || selectedPhoto.favorite === 1 || selectedPhoto.favorite === '1') ? '#eab308' : '#94a3b8', border: '1px solid #334155', padding: '8px 14px', borderRadius: '20px', fontSize: '15px', cursor: 'pointer' }}
               >
-                {(selectedPhoto.favorite === true || selectedPhoto.favorite === 'true') ? '⭐ Favorit' : '☆ Favorit'}
+                {(selectedPhoto.favorite === true || selectedPhoto.favorite === 'true' || selectedPhoto.favorite === 1 || selectedPhoto.favorite === '1') ? '⭐ Favorit' : '☆ Favorit'}
               </button>
 
               <button 
